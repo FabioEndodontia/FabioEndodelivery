@@ -11,6 +11,7 @@ import ViewProcedure from "@/pages/view-procedure";
 import Financial from "@/pages/financial";
 import Reports from "@/pages/reports";
 import Invoices from "@/pages/invoices";
+import Appointments from "@/pages/appointments";
 import Sidebar from "@/components/ui/sidebar";
 
 function Router() {
@@ -27,6 +28,8 @@ function Router() {
         return "Dentistas/Clínicas";
       case location === "/procedures":
         return "Atendimentos";
+      case location === "/appointments":
+        return "Agenda";
       case location === "/financial":
         return "Financeiro";
       case location === "/reports":
@@ -49,6 +52,8 @@ function Router() {
         return "Gerenciar seus dentistas e clínicas parceiras";
       case location === "/procedures":
         return "Gerenciar seus atendimentos";
+      case location === "/appointments":
+        return "Gerenciar agendamentos e integração com Calendly";
       case location === "/financial":
         return "Controle de pagamentos e recebimentos";
       case location === "/reports":
@@ -80,6 +85,7 @@ function Router() {
             <Route path="/patients" component={Patients} />
             <Route path="/dentists" component={Dentists} />
             <Route path="/procedures" component={Procedures} />
+            <Route path="/appointments" component={Appointments} />
             <Route path="/financial" component={Financial} />
             <Route path="/reports" component={Reports} />
             <Route path="/invoices" component={Invoices} />

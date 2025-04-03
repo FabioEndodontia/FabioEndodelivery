@@ -46,6 +46,23 @@ export const PROCEDURE_TYPES = [
   "OTHER"
 ] as const;
 
+// Complexity types enum
+export const COMPLEXITY_TYPES = [
+  "STANDARD",
+  "MODERATE",
+  "HIGH",
+  "EXTREME"
+] as const;
+
+// Appointment status enum
+export const APPOINTMENT_STATUS = [
+  "SCHEDULED",
+  "COMPLETED",
+  "CANCELLED",
+  "RESCHEDULED",
+  "NO_SHOW"
+] as const;
+
 // Procedures table
 export const procedures = pgTable("procedures", {
   id: serial("id").primaryKey(),
@@ -76,6 +93,26 @@ export const invoices = pgTable("invoices", {
   invoiceDate: date("invoice_date"),
   isIssued: boolean("is_issued").default(false).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Appointments table (for Calendly integration)
+export const appointments = pgTable("appointments", {
+  id: serial("id").primaryKey(),
+  patientId: integer("patient_id").references(() => patients.id),
+  dentistId: integer("dentist_id").references(() => dentists.id),
+  toothNumber: integer("tooth_number"),
+  procedureType: text("procedure_type"),
+  complexity: text("complexity"),
+  healthIssues: text("health_issues"),
+  appointmentDate: timestamp("appointment_date").notNull(),
+  duration: integer("duration").default(60), // duration in minutes
+  status: text("status").default("SCHEDULED").notNull(),
+  calendlyEventId: text("calendly_event_id"),
+  calendlyEventUrl: text("calendly_event_url"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  convertedToProcedure: boolean("converted_to_procedure").default(false).notNull(),
+  procedureId: integer("procedure_id").references(() => procedures.id),
 });
 
 // Schema validation for patient creation
@@ -115,6 +152,21 @@ export const insertInvoiceSchema = createInsertSchema(invoices)
     invoiceDate: z.coerce.date().optional(),
   });
 
+// Schema validation for appointment creation
+export const insertAppointmentSchema = createInsertSchema(appointments)
+  .omit({
+    id: true,
+    createdAt: true,
+    convertedToProcedure: true,
+    procedureId: true,
+  })
+  .extend({
+    appointmentDate: z.coerce.date(),
+    status: z.enum(APPOINTMENT_STATUS),
+    procedureType: z.enum(PROCEDURE_TYPES).optional(),
+    complexity: z.enum(COMPLEXITY_TYPES).optional(),
+  });
+
 // Types
 export type Patient = typeof patients.$inferSelect;
 export type InsertPatient = z.infer<typeof insertPatientSchema>;
@@ -128,6 +180,11 @@ export type InsertProcedure = z.infer<typeof insertProcedureSchema>;
 export type Invoice = typeof invoices.$inferSelect;
 export type InsertInvoice = z.infer<typeof insertInvoiceSchema>;
 
+export type Appointment = typeof appointments.$inferSelect;
+export type InsertAppointment = z.infer<typeof insertAppointmentSchema>;
+
 export type PaymentMethod = typeof PAYMENT_METHODS[number];
 export type PaymentStatus = typeof PAYMENT_STATUS[number];
 export type ProcedureType = typeof PROCEDURE_TYPES[number];
+export type ComplexityType = typeof COMPLEXITY_TYPES[number];
+export type AppointmentStatus = typeof APPOINTMENT_STATUS[number];

@@ -6,7 +6,8 @@ import {
   insertPatientSchema, 
   insertDentistSchema, 
   insertProcedureSchema, 
-  insertInvoiceSchema 
+  insertInvoiceSchema,
+  insertAppointmentSchema
 } from "@shared/schema";
 import { fromZodError } from "zod-validation-error";
 import { DatabaseStorage } from "./database-storage";
@@ -589,6 +590,164 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(204).end();
     } catch (err) {
       res.status(500).json({ message: 'Failed to delete invoice' });
+    }
+  });
+
+  // Appointments API (Calendly integration)
+  app.get('/api/appointments', async (req, res) => {
+    try {
+      const patientId = req.query.patientId ? Number(req.query.patientId) : undefined;
+      const dentistId = req.query.dentistId ? Number(req.query.dentistId) : undefined;
+      
+      let appointments;
+      if (patientId) {
+        appointments = await storage.getAppointmentsByPatient(patientId);
+      } else if (dentistId) {
+        appointments = await storage.getAppointmentsByDentist(dentistId);
+      } else {
+        appointments = await storage.getAppointments();
+      }
+      
+      // Enhance appointments with patient and dentist names
+      const enhanced = await Promise.all(appointments.map(async appointment => {
+        const patient = await storage.getPatient(appointment.patientId);
+        const dentist = await storage.getDentist(appointment.dentistId);
+        return {
+          ...appointment,
+          patientName: patient?.name || 'Unknown Patient',
+          dentistName: dentist?.name || 'Unknown Dentist',
+        };
+      }));
+      
+      res.json(enhanced);
+    } catch (err) {
+      res.status(500).json({ message: 'Failed to get appointments' });
+    }
+  });
+
+  app.get('/api/appointments/upcoming', async (req, res) => {
+    try {
+      const limit = Number(req.query.limit) || 5;
+      const appointments = await storage.getUpcomingAppointments(limit);
+      
+      // Enhance appointments with patient and dentist names
+      const enhanced = await Promise.all(appointments.map(async appointment => {
+        const patient = await storage.getPatient(appointment.patientId);
+        const dentist = await storage.getDentist(appointment.dentistId);
+        return {
+          ...appointment,
+          patientName: patient?.name || 'Unknown Patient',
+          dentistName: dentist?.name || 'Unknown Dentist',
+        };
+      }));
+      
+      res.json(enhanced);
+    } catch (err) {
+      res.status(500).json({ message: 'Failed to get upcoming appointments' });
+    }
+  });
+
+  app.get('/api/appointments/:id', async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      const appointment = await storage.getAppointment(id);
+      
+      if (!appointment) {
+        return res.status(404).json({ message: 'Appointment not found' });
+      }
+      
+      // Enhance appointment with patient and dentist names
+      const patient = await storage.getPatient(appointment.patientId);
+      const dentist = await storage.getDentist(appointment.dentistId);
+      
+      const enhanced = {
+        ...appointment,
+        patientName: patient?.name || 'Unknown Patient',
+        dentistName: dentist?.name || 'Unknown Dentist',
+      };
+      
+      res.json(enhanced);
+    } catch (err) {
+      res.status(500).json({ message: 'Failed to get appointment' });
+    }
+  });
+
+  app.post('/api/appointments', async (req, res) => {
+    try {
+      const appointmentData = insertAppointmentSchema.parse(req.body);
+      const appointment = await storage.createAppointment(appointmentData);
+      res.status(201).json(appointment);
+    } catch (err) {
+      handleValidationError(err, res);
+    }
+  });
+
+  app.put('/api/appointments/:id', async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      const appointmentData = insertAppointmentSchema.partial().parse(req.body);
+      const appointment = await storage.updateAppointment(id, appointmentData);
+      
+      if (!appointment) {
+        return res.status(404).json({ message: 'Appointment not found' });
+      }
+      
+      res.json(appointment);
+    } catch (err) {
+      handleValidationError(err, res);
+    }
+  });
+
+  app.delete('/api/appointments/:id', async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      const deleted = await storage.deleteAppointment(id);
+      
+      if (!deleted) {
+        return res.status(404).json({ message: 'Appointment not found' });
+      }
+      
+      res.status(204).end();
+    } catch (err) {
+      res.status(500).json({ message: 'Failed to delete appointment' });
+    }
+  });
+
+  app.post('/api/appointments/:id/convert', async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      const procedure = await storage.convertAppointmentToProcedure(id);
+      
+      if (!procedure) {
+        return res.status(404).json({ 
+          message: 'Appointment not found or already converted to procedure' 
+        });
+      }
+      
+      res.status(201).json(procedure);
+    } catch (err) {
+      res.status(500).json({ 
+        message: 'Failed to convert appointment to procedure' 
+      });
+    }
+  });
+
+  app.post('/api/calendly/sync', async (req, res) => {
+    try {
+      const { accessToken } = req.body;
+      
+      if (!accessToken) {
+        return res.status(400).json({ 
+          message: 'Calendly access token is required' 
+        });
+      }
+      
+      const result = await storage.syncCalendlyEvents(accessToken);
+      res.json(result);
+    } catch (err) {
+      res.status(500).json({ 
+        message: 'Failed to sync with Calendly' 
+      });
     }
   });
 

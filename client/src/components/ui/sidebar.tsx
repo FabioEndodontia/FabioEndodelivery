@@ -9,13 +9,15 @@ import {
   FileText, 
   Receipt, 
   Settings,
-  LogOut
+  LogOut,
+  Calendar
 } from "lucide-react";
 
 const Sidebar = () => {
   const links = [
     { href: "/", label: "Dashboard", icon: Home },
     { href: "/procedures", label: "Atendimentos", icon: Activity },
+    { href: "/appointments", label: "Agenda", icon: Calendar },
     { href: "/patients", label: "Pacientes", icon: User },
     { href: "/dentists", label: "Dentistas/Clínicas", icon: Users },
     { href: "/financial", label: "Financeiro", icon: DollarSign },

@@ -1,9 +1,10 @@
 import {
-  patients, dentists, procedures, invoices,
+  patients, dentists, procedures, invoices, appointments,
   type Patient, type InsertPatient,
   type Dentist, type InsertDentist,
   type Procedure, type InsertProcedure,
-  type Invoice, type InsertInvoice
+  type Invoice, type InsertInvoice,
+  type Appointment, type InsertAppointment
 } from "@shared/schema";
 
 // Storage interface for all CRUD operations
@@ -39,6 +40,17 @@ export interface IStorage {
   updateInvoice(id: number, invoice: Partial<InsertInvoice>): Promise<Invoice | undefined>;
   deleteInvoice(id: number): Promise<boolean>;
 
+  // Appointment operations (Calendly integration)
+  getAppointments(): Promise<Appointment[]>;
+  getAppointmentsByPatient(patientId: number): Promise<Appointment[]>;
+  getAppointmentsByDentist(dentistId: number): Promise<Appointment[]>;
+  getAppointment(id: number): Promise<Appointment | undefined>;
+  createAppointment(appointment: InsertAppointment): Promise<Appointment>;
+  updateAppointment(id: number, appointment: Partial<InsertAppointment>): Promise<Appointment | undefined>;
+  deleteAppointment(id: number): Promise<boolean>;
+  convertAppointmentToProcedure(id: number): Promise<Procedure | undefined>;
+  syncCalendlyEvents(accessToken: string): Promise<{ created: number; updated: number; errors: number }>;
+  
   // Dashboard data operations
   getProcedureStats(): Promise<{
     totalProcedures: number;
@@ -51,6 +63,7 @@ export interface IStorage {
   getRecentProcedures(limit: number): Promise<Procedure[]>;
   getPendingPayments(): Promise<Procedure[]>;
   getPendingInvoices(): Promise<Procedure[]>;
+  getUpcomingAppointments(limit: number): Promise<Appointment[]>;
 }
 
 export class MemStorage implements IStorage {
@@ -58,22 +71,26 @@ export class MemStorage implements IStorage {
   private dentists: Map<number, Dentist>;
   private procedures: Map<number, Procedure>;
   private invoices: Map<number, Invoice>;
+  private appointments: Map<number, Appointment>;
   
   private patientId: number;
   private dentistId: number;
   private procedureId: number;
   private invoiceId: number;
+  private appointmentId: number;
 
   constructor() {
     this.patients = new Map();
     this.dentists = new Map();
     this.procedures = new Map();
     this.invoices = new Map();
+    this.appointments = new Map();
     
     this.patientId = 1;
     this.dentistId = 1;
     this.procedureId = 1;
     this.invoiceId = 1;
+    this.appointmentId = 1;
 
     // Initialize with some sample data
     this.initializeSampleData();
@@ -290,6 +307,102 @@ export class MemStorage implements IStorage {
     return Array.from(this.procedures.values())
       .filter(p => p.paymentStatus === 'PAID' && !proceduresWithInvoices.has(p.id))
       .sort((a, b) => new Date(b.procedureDate).getTime() - new Date(a.procedureDate).getTime());
+  }
+
+  // Appointment operations
+  async getAppointments(): Promise<Appointment[]> {
+    return Array.from(this.appointments.values());
+  }
+
+  async getAppointmentsByPatient(patientId: number): Promise<Appointment[]> {
+    return Array.from(this.appointments.values())
+      .filter(appointment => appointment.patientId === patientId);
+  }
+
+  async getAppointmentsByDentist(dentistId: number): Promise<Appointment[]> {
+    return Array.from(this.appointments.values())
+      .filter(appointment => appointment.dentistId === dentistId);
+  }
+
+  async getAppointment(id: number): Promise<Appointment | undefined> {
+    return this.appointments.get(id);
+  }
+
+  async createAppointment(appointmentData: InsertAppointment): Promise<Appointment> {
+    const id = this.appointmentId++;
+    const now = new Date();
+    
+    const appointment: Appointment = {
+      ...appointmentData,
+      id,
+      createdAt: now,
+      convertedToProcedure: false,
+      procedureId: null
+    };
+    
+    this.appointments.set(id, appointment);
+    return appointment;
+  }
+
+  async updateAppointment(id: number, appointmentData: Partial<InsertAppointment>): Promise<Appointment | undefined> {
+    const appointment = this.appointments.get(id);
+    if (!appointment) return undefined;
+    
+    const updatedAppointment: Appointment = { ...appointment, ...appointmentData };
+    this.appointments.set(id, updatedAppointment);
+    return updatedAppointment;
+  }
+
+  async deleteAppointment(id: number): Promise<boolean> {
+    return this.appointments.delete(id);
+  }
+
+  async convertAppointmentToProcedure(id: number): Promise<Procedure | undefined> {
+    const appointment = this.appointments.get(id);
+    if (!appointment || appointment.convertedToProcedure) return undefined;
+    
+    // Create a new procedure from the appointment data
+    const procedureData: InsertProcedure = {
+      patientId: appointment.patientId || 0,
+      dentistId: appointment.dentistId || 0,
+      toothNumber: appointment.toothNumber || 0,
+      procedureType: appointment.procedureType || "TREATMENT",
+      procedureDate: new Date(appointment.appointmentDate),
+      value: 0, // Default value, needs to be updated later
+      paymentMethod: "PENDING",
+      paymentStatus: "PENDING"
+    };
+    
+    const procedure = await this.createProcedure(procedureData);
+    
+    // Update the appointment as converted
+    const updatedAppointment: Appointment = {
+      ...appointment,
+      convertedToProcedure: true,
+      procedureId: procedure.id
+    };
+    
+    this.appointments.set(id, updatedAppointment);
+    
+    return procedure;
+  }
+
+  async syncCalendlyEvents(accessToken: string): Promise<{ created: number; updated: number; errors: number }> {
+    // In a real implementation, this would make API calls to Calendly
+    // For now, we'll return a mock response
+    return {
+      created: 0,
+      updated: 0,
+      errors: 0
+    };
+  }
+
+  async getUpcomingAppointments(limit: number): Promise<Appointment[]> {
+    const now = new Date();
+    return Array.from(this.appointments.values())
+      .filter(appointment => new Date(appointment.appointmentDate) >= now && !appointment.convertedToProcedure)
+      .sort((a, b) => new Date(a.appointmentDate).getTime() - new Date(b.appointmentDate).getTime())
+      .slice(0, limit);
   }
 }
 
