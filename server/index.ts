@@ -2,13 +2,24 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import path from "path";
+import { initializeDatabase } from "./db-adapter";
+import fs from "fs";
+
+// Configurar sqlite como padrão se não houver variável de ambiente
+process.env.USE_SQLITE = process.env.USE_SQLITE || 'true';
+
+// Certifique-se de que o diretório de uploads existe
+const uploadsDir = path.join(process.cwd(), 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
 
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
 // Serve uploads directory as static files
-app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
+app.use('/uploads', express.static(uploadsDir));
 
 app.use((req, res, next) => {
   const start = Date.now();
@@ -41,6 +52,9 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  // Inicializar o banco de dados antes de registrar as rotas
+  await initializeDatabase();
+  
   const server = await registerRoutes(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {

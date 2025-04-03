@@ -1,6 +1,8 @@
-import express, { type Express, type Request, type Response } from "express";
+import express, { type Express, type Request, type Response, type NextFunction } from "express";
 import { createServer, type Server } from "http";
-import { storage } from "./storage";
+import { storage } from "./db-adapter"; // Atualizando para o adaptador SQLite/PostgreSQL
+import { setupAntiHibernate } from "./anti-hibernate";
+import { setupBackupRoutes } from "./db-backup";
 import { ZodError } from "zod";
 import { 
   insertPatientSchema, 
@@ -82,6 +84,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(stats);
     } catch (err) {
       res.status(500).json({ message: 'Failed to get dashboard stats' });
+    }
+  });
+  
+  // Rota para métricas de procedimentos por tipo (tratamento/retratamento/etc)
+  app.get('/api/dashboard/stats/procedures-by-type', async (req, res) => {
+    try {
+      const stats = await storage.getProcedureStats();
+      res.json(stats.proceduresByType);
+    } catch (err) {
+      res.status(500).json({ message: 'Failed to get procedure type stats' });
+    }
+  });
+  
+  // Rota para métricas de procedimentos por complexidade
+  app.get('/api/dashboard/stats/procedures-by-complexity', async (req, res) => {
+    try {
+      const stats = await storage.getProcedureStats();
+      res.json(stats.proceduresByComplexity);
+    } catch (err) {
+      res.status(500).json({ message: 'Failed to get procedure complexity stats' });
+    }
+  });
+  
+  // Rota para métricas de desempenho de dentistas
+  app.get('/api/dashboard/stats/dentist-performance', async (req, res) => {
+    try {
+      const stats = await storage.getProcedureStats();
+      res.json(stats.dentistPerformance);
+    } catch (err) {
+      res.status(500).json({ message: 'Failed to get dentist performance stats' });
+    }
+  });
+  
+  // Rota para métricas de receita mensal
+  app.get('/api/dashboard/stats/revenue-by-month', async (req, res) => {
+    try {
+      const stats = await storage.getProcedureStats();
+      res.json(stats.revenueByMonth);
+    } catch (err) {
+      res.status(500).json({ message: 'Failed to get monthly revenue stats' });
+    }
+  });
+  
+  // Rota para comparação mensal
+  app.get('/api/dashboard/stats/monthly-comparison', async (req, res) => {
+    try {
+      const stats = await storage.getProcedureStats();
+      res.json(stats.monthlyComparison);
+    } catch (err) {
+      res.status(500).json({ message: 'Failed to get monthly comparison stats' });
     }
   });
 
@@ -1237,6 +1289,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Configurar rota anti-hibernação
+  setupAntiHibernate(app);
+  
+  // Configurar rotas de backup do banco de dados
+  setupBackupRoutes(app);
+
+  // Criar e retornar o servidor HTTP
   const httpServer = createServer(app);
   return httpServer;
 }
