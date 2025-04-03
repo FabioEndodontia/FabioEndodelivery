@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import { 
   Plus, 
   Search, 
@@ -7,7 +8,8 @@ import {
   Trash, 
   Check, 
   AlertTriangle, 
-  FileText 
+  FileText,
+  FileDown 
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -48,6 +50,7 @@ import { apiRequest } from "@/lib/queryClient";
 const Procedures = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [_, navigate] = useLocation();
   const [search, setSearch] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
   const [editProcedureId, setEditProcedureId] = useState<number | null>(null);
@@ -174,6 +177,10 @@ const Procedures = () => {
                           <DropdownMenuContent align="end">
                             <DropdownMenuLabel>Ações</DropdownMenuLabel>
                             <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={() => navigate(`/procedure/${procedure.id}`)}>
+                              <FileDown className="h-4 w-4 mr-2" />
+                              Relatório
+                            </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => setEditProcedureId(procedure.id)}>
                               <Edit className="h-4 w-4 mr-2" />
                               Editar

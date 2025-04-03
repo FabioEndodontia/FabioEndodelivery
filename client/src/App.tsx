@@ -1,4 +1,4 @@
-import { Switch, Route, useLocation } from "wouter";
+import { Switch, Route, useLocation, useRoute } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -7,6 +7,7 @@ import Dashboard from "@/pages/dashboard";
 import Patients from "@/pages/patients";
 import Dentists from "@/pages/dentists";
 import Procedures from "@/pages/procedures";
+import ViewProcedure from "@/pages/view-procedure";
 import Financial from "@/pages/financial";
 import Reports from "@/pages/reports";
 import Invoices from "@/pages/invoices";
@@ -59,7 +60,11 @@ function Router() {
     }
   };
 
-  return (
+  // Verifica se estamos em rotas especiais que não devem mostrar o cabeçalho/sidebar
+  const [isViewProcedurePath] = useRoute('/procedure/:id');
+
+  // Layout completo com sidebar e cabeçalho
+  const renderFullLayout = () => (
     <div className="flex h-screen">
       <Sidebar />
       <div className="flex-1 flex flex-col overflow-hidden">
@@ -84,6 +89,17 @@ function Router() {
       </div>
     </div>
   );
+
+  // Layout simplificado para páginas específicas
+  const renderSimpleLayout = () => (
+    <div className="min-h-screen bg-neutral-100">
+      <Switch>
+        <Route path="/procedure/:id" component={ViewProcedure} />
+      </Switch>
+    </div>
+  );
+
+  return isViewProcedurePath ? renderSimpleLayout() : renderFullLayout();
 }
 
 function App() {

@@ -11,3 +11,33 @@
     @apply font-sans antialiased bg-background text-foreground;
   }
 }
+
+/* Estilos de impressão para relatórios */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  
+  .print-content, 
+  .print-content * {
+    visibility: visible;
+  }
+  
+  .print-content {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+  }
+  
+  button, 
+  .no-print {
+    display: none !important;
+  }
+  
+  /* Quebra de página para múltiplos relatórios */
+  .page-break {
+    page-break-after: always;
+    break-after: page;
+  }
+}

@@ -48,27 +48,29 @@ const ProcedureForm: React.FC<ProcedureFormProps> = ({ onSuccess, onCancel, proc
   const form = useForm<InsertProcedure>({
     resolver: zodResolver(insertProcedureSchema),
     defaultValues: {
-      procedureDate: new Date().toISOString().split('T')[0],
+      procedureDate: new Date(),
       paymentStatus: 'PENDING',
       paymentMethod: 'PENDING',
+      diagnosis: '',
+      prognosis: '',
+      canalMeasurements: '',
+      initialXrayUrl: '',
+      finalXrayUrl: '',
+      notes: '',
     },
   });
 
   // Initialize form with procedure data when available
   useEffect(() => {
     if (procedureData && isEditing) {
-      const formattedProcedureDate = new Date(procedureData.procedureDate)
-        .toISOString()
-        .split('T')[0];
-      
-      const formattedPaymentDate = procedureData.paymentDate
-        ? new Date(procedureData.paymentDate).toISOString().split('T')[0]
-        : undefined;
+      // Use proper date objects for Zod validation
+      const procedureDate = new Date(procedureData.procedureDate);
+      const paymentDate = procedureData.paymentDate ? new Date(procedureData.paymentDate) : undefined;
       
       form.reset({
         ...procedureData,
-        procedureDate: formattedProcedureDate,
-        paymentDate: formattedPaymentDate,
+        procedureDate,
+        paymentDate,
       });
     }
   }, [procedureData, form, isEditing]);
@@ -237,6 +239,76 @@ const ProcedureForm: React.FC<ProcedureFormProps> = ({ onSuccess, onCancel, proc
                   </FormItem>
                 )}
               />
+              
+              <FormField
+                control={form.control}
+                name="diagnosis"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Diagnóstico do Dente</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Diagnóstico" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="prognosis"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Prognóstico</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Prognóstico" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="canalMeasurements"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Medidas do Canal</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Ex: MV: 21.5mm, DV: 20mm, P: 22mm" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="initialXrayUrl"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>URL da Radiografia Inicial</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Radiografia Inicial (URL)" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="finalXrayUrl"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>URL da Radiografia Final</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Radiografia Final (URL)" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
               <FormField
                 control={form.control}
@@ -261,11 +333,19 @@ const ProcedureForm: React.FC<ProcedureFormProps> = ({ onSuccess, onCancel, proc
               <FormField
                 control={form.control}
                 name="procedureDate"
-                render={({ field }) => (
+                render={({ field: { value, onChange, ...fieldProps } }) => (
                   <FormItem>
                     <FormLabel>Data do Atendimento</FormLabel>
                     <FormControl>
-                      <Input type="date" {...field} />
+                      <Input 
+                        type="date" 
+                        {...fieldProps}
+                        value={value instanceof Date ? value.toISOString().split('T')[0] : ''}
+                        onChange={(e) => {
+                          const date = e.target.value ? new Date(e.target.value) : null;
+                          onChange(date);
+                        }}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -330,6 +410,24 @@ const ProcedureForm: React.FC<ProcedureFormProps> = ({ onSuccess, onCancel, proc
                 )}
               />
             </div>
+
+            <FormField
+              control={form.control}
+              name="notes"
+              render={({ field }) => (
+                <FormItem className="col-span-full">
+                  <FormLabel>Observações</FormLabel>
+                  <FormControl>
+                    <textarea
+                      className="flex min-h-[100px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                      placeholder="Observações adicionais sobre o procedimento"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             {!isEditing && form.watch('paymentStatus') === 'PAID' && (
               <div className="flex items-center space-x-2">
