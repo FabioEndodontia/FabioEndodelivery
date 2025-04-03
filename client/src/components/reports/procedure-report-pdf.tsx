@@ -1,88 +1,155 @@
 import { Document, Page, Text, View, StyleSheet, Image } from '@react-pdf/renderer';
 import { Procedure, Patient, Dentist } from '@shared/schema';
 
+// Cores FSF Endodontia de Alta Performance
+const colors = {
+  primary: '#1E8738', // Verde FSF
+  secondary: '#8A2763', // Roxo/Bordô FSF
+  lightSecondary: '#C499B3', // Versão mais clara do roxo
+  black: '#333333',
+  gray: '#666666',
+  lightGray: '#EEEEEE',
+  white: '#FFFFFF',
+};
+
 const styles = StyleSheet.create({
   page: {
     padding: 30,
     fontFamily: 'Helvetica',
+    backgroundColor: colors.white,
+    position: 'relative',
+  },
+  headerCorner: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    width: 100,
+    height: 100,
+    backgroundColor: colors.primary,
+    borderBottomLeftRadius: 100,
+  },
+  footerCorner: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    width: 100,
+    height: 100,
+    backgroundColor: colors.secondary,
+    borderTopRightRadius: 100,
   },
   header: {
-    borderBottom: '1px solid #ccc',
-    paddingBottom: 10,
-    marginBottom: 20,
+    marginBottom: 30,
     display: 'flex',
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    zIndex: 2,
   },
   title: {
-    fontSize: 18,
+    fontSize: 24,
     fontWeight: 'bold',
+    color: colors.primary,
+    fontStyle: 'italic',
     marginBottom: 5,
   },
   subtitle: {
-    fontSize: 12,
-    color: '#666',
+    fontSize: 14,
+    color: colors.secondary,
+    marginBottom: 10,
   },
   date: {
     fontSize: 12,
-    color: '#666',
+    color: colors.gray,
     textAlign: 'right',
   },
   section: {
-    marginBottom: 20,
+    marginBottom: 25,
+    zIndex: 2,
   },
   sectionTitle: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: 'bold',
-    marginBottom: 8,
+    color: colors.primary,
+    fontStyle: 'italic',
+    marginBottom: 12,
   },
   row: {
     display: 'flex',
     flexDirection: 'row',
-    marginBottom: 15,
+    marginBottom: 20,
   },
   column: {
     flex: 1,
+    paddingHorizontal: 5,
   },
   label: {
     fontSize: 12,
     fontWeight: 'bold',
+    color: colors.secondary,
     marginBottom: 4,
   },
   value: {
     fontSize: 12,
+    color: colors.black,
     marginBottom: 8,
   },
   divider: {
-    borderBottom: '1px solid #eee',
+    borderBottom: `1px solid ${colors.lightSecondary}`,
     marginVertical: 15,
+    position: 'relative',
+    height: 2,
+  },
+  dividerDot: {
+    position: 'absolute',
+    backgroundColor: colors.secondary,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    top: -2,
+    left: '50%',
+    marginLeft: -3,
   },
   footer: {
-    borderTop: '1px solid #ccc',
-    paddingTop: 10,
-    marginTop: 20,
+    paddingTop: 15,
+    marginTop: 30,
     fontSize: 10,
     textAlign: 'center',
-    color: '#666',
+    color: colors.gray,
+    position: 'relative',
+    zIndex: 2,
   },
   imageContainer: {
-    marginTop: 10,
+    marginTop: 15,
     display: 'flex',
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
   imageWrapper: {
     width: '48%',
+    borderWidth: 1,
+    borderColor: colors.lightGray,
+    borderRadius: 5,
+    padding: 5,
+    backgroundColor: colors.white,
   },
   image: {
     width: '100%',
     objectFit: 'contain',
-    marginBottom: 5,
+    marginBottom: 8,
   },
   imageLabel: {
     fontSize: 10,
-    color: '#666',
+    color: colors.primary,
     textAlign: 'center',
+    fontWeight: 'bold',
+  },
+  logo: {
+    position: 'absolute',
+    right: 30,
+    bottom: 30,
+    width: 80,
+    height: 40,
+    zIndex: 2,
   },
 });
 
@@ -125,6 +192,10 @@ export const ProcedureReport = ({ data }: ProcedureReportProps) => {
   return (
     <Document>
       <Page size="A4" style={styles.page}>
+        {/* Cantos decorativos, como no seu portfólio */}
+        <View style={styles.headerCorner} />
+        <View style={styles.footerCorner} />
+        
         <View style={styles.header}>
           <View>
             <Text style={styles.title}>Relatório Endodôntico</Text>
@@ -166,7 +237,9 @@ export const ProcedureReport = ({ data }: ProcedureReportProps) => {
           </View>
         </View>
 
-        <View style={styles.divider} />
+        <View style={styles.divider}>
+          <View style={styles.dividerDot} />
+        </View>
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Informações do Procedimento</Text>
@@ -230,6 +303,9 @@ export const ProcedureReport = ({ data }: ProcedureReportProps) => {
 
         <View style={styles.footer}>
           <Text>Relatório gerado em {formatDate(date)}</Text>
+          <Text style={{ color: colors.primary, fontWeight: 'bold', marginTop: 5 }}>
+            Endodontia de Alta Performance
+          </Text>
         </View>
       </Page>
     </Document>
