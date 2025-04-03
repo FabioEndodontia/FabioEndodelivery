@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, date, timestamp, doublePrecision } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, date, timestamp, doublePrecision, pgEnum } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -184,8 +184,106 @@ export type InsertInvoice = z.infer<typeof insertInvoiceSchema>;
 export type Appointment = typeof appointments.$inferSelect;
 export type InsertAppointment = z.infer<typeof insertAppointmentSchema>;
 
+// Tipos de metas financeiras
+export const GOAL_TYPES = [
+  "REVENUE",
+  "PROCEDURE_COUNT",
+  "NEW_PATIENTS",
+  "SPECIFIC_DENTIST",
+  "SPECIFIC_PROCEDURE"
+] as const;
+
+// Frequência das metas
+export const GOAL_FREQUENCIES = [
+  "DAILY",
+  "WEEKLY",
+  "MONTHLY",
+  "QUARTERLY",
+  "YEARLY"
+] as const;
+
+// Níveis de dificuldade
+export const GOAL_DIFFICULTY = [
+  "EASY",
+  "MEDIUM",
+  "HARD",
+  "EXPERT"
+] as const;
+
+// Tabela de metas financeiras
+export const financialGoals = pgTable("financial_goals", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description"),
+  goalType: text("goal_type").notNull(),
+  targetValue: doublePrecision("target_value").notNull(),
+  currentValue: doublePrecision("current_value").default(0).notNull(),
+  startDate: date("start_date").notNull(),
+  endDate: date("end_date").notNull(),
+  frequency: text("frequency").notNull(),
+  difficulty: text("difficulty").notNull(),
+  isActive: boolean("is_active").default(true).notNull(),
+  isCompleted: boolean("is_completed").default(false).notNull(),
+  dentistId: integer("dentist_id"), // Opcional: para metas específicas por dentista
+  procedureType: text("procedure_type"), // Opcional: para metas específicas por tipo de procedimento
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Tabela de conquistas
+export const achievements = pgTable("achievements", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description").notNull(),
+  iconName: text("icon_name").notNull(),
+  points: integer("points").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Tabela de conquistas do usuário
+export const userAchievements = pgTable("user_achievements", {
+  id: serial("id").primaryKey(),
+  achievementId: integer("achievement_id").notNull().references(() => achievements.id),
+  earnedDate: timestamp("earned_date").defaultNow().notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Schema validation para metas financeiras
+export const insertFinancialGoalSchema = createInsertSchema(financialGoals)
+  .omit({
+    id: true,
+    currentValue: true,
+    isCompleted: true,
+    createdAt: true,
+  })
+  .extend({
+    goalType: z.enum(GOAL_TYPES),
+    frequency: z.enum(GOAL_FREQUENCIES),
+    difficulty: z.enum(GOAL_DIFFICULTY),
+    startDate: z.coerce.date(),
+    endDate: z.coerce.date(),
+    procedureType: z.enum(PROCEDURE_TYPES).optional(),
+  });
+
+// Schema validation para conquistas
+export const insertAchievementSchema = createInsertSchema(achievements)
+  .omit({
+    id: true,
+    createdAt: true,
+  });
+
 export type PaymentMethod = typeof PAYMENT_METHODS[number];
 export type PaymentStatus = typeof PAYMENT_STATUS[number];
 export type ProcedureType = typeof PROCEDURE_TYPES[number];
 export type ComplexityType = typeof COMPLEXITY_TYPES[number];
 export type AppointmentStatus = typeof APPOINTMENT_STATUS[number];
+export type GoalType = typeof GOAL_TYPES[number];
+export type GoalFrequency = typeof GOAL_FREQUENCIES[number];
+export type GoalDifficulty = typeof GOAL_DIFFICULTY[number];
+
+export type FinancialGoal = typeof financialGoals.$inferSelect;
+export type InsertFinancialGoal = z.infer<typeof insertFinancialGoalSchema>;
+
+export type Achievement = typeof achievements.$inferSelect;
+export type InsertAchievement = z.infer<typeof insertAchievementSchema>;
+
+export type UserAchievement = typeof userAchievements.$inferSelect;

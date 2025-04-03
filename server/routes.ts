@@ -7,13 +7,16 @@ import {
   insertDentistSchema, 
   insertProcedureSchema, 
   insertInvoiceSchema,
-  insertAppointmentSchema
+  insertAppointmentSchema,
+  insertFinancialGoalSchema,
+  insertAchievementSchema
 } from "@shared/schema";
 import { fromZodError } from "zod-validation-error";
 import { DatabaseStorage } from "./database-storage";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
+import { log } from "./vite";
 
 // Configuração do Multer para armazenar os arquivos de imagem
 const storage_config = multer.diskStorage({
@@ -812,6 +815,237 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (err) {
       console.error('Erro ao enviar imagem:', err);
       res.status(500).json({ message: 'Falha ao enviar imagem' });
+    }
+  });
+
+  // Financial Goals API Routes
+  app.get('/api/financial-goals', async (req, res) => {
+    try {
+      const goals = await storage.getFinancialGoals();
+      res.json(goals);
+    } catch (error) {
+      log(`Erro ao buscar metas financeiras: ${error.message}`, 'routes');
+      res.status(500).json({ error: 'Erro ao buscar metas financeiras' });
+    }
+  });
+
+  app.get('/api/financial-goals/active', async (req, res) => {
+    try {
+      const activeGoals = await storage.getActiveGoals();
+      res.json(activeGoals);
+    } catch (error) {
+      log(`Erro ao buscar metas financeiras ativas: ${error.message}`, 'routes');
+      res.status(500).json({ error: 'Erro ao buscar metas financeiras ativas' });
+    }
+  });
+
+  app.get('/api/financial-goals/:id', async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: 'ID de meta inválido' });
+      }
+
+      const goal = await storage.getFinancialGoal(id);
+      if (!goal) {
+        return res.status(404).json({ error: 'Meta financeira não encontrada' });
+      }
+
+      res.json(goal);
+    } catch (error) {
+      log(`Erro ao buscar meta financeira: ${error.message}`, 'routes');
+      res.status(500).json({ error: 'Erro ao buscar meta financeira' });
+    }
+  });
+
+  app.post('/api/financial-goals', async (req, res) => {
+    try {
+      const goalData = insertFinancialGoalSchema.parse(req.body);
+      const newGoal = await storage.createFinancialGoal(goalData);
+      res.status(201).json(newGoal);
+    } catch (error) {
+      handleValidationError(error, res);
+    }
+  });
+
+  app.put('/api/financial-goals/:id', async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: 'ID de meta inválido' });
+      }
+
+      const goalData = req.body;
+      const updatedGoal = await storage.updateFinancialGoal(id, goalData);
+      
+      if (!updatedGoal) {
+        return res.status(404).json({ error: 'Meta financeira não encontrada' });
+      }
+      
+      res.json(updatedGoal);
+    } catch (error) {
+      handleValidationError(error, res);
+    }
+  });
+
+  app.delete('/api/financial-goals/:id', async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: 'ID de meta inválido' });
+      }
+
+      const success = await storage.deleteFinancialGoal(id);
+      if (!success) {
+        return res.status(404).json({ error: 'Meta financeira não encontrada' });
+      }
+      
+      res.status(204).send();
+    } catch (error) {
+      log(`Erro ao excluir meta financeira: ${error.message}`, 'routes');
+      res.status(500).json({ error: 'Erro ao excluir meta financeira' });
+    }
+  });
+
+  app.post('/api/financial-goals/:id/progress', async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: 'ID de meta inválido' });
+      }
+
+      const { value } = req.body;
+      if (typeof value !== 'number') {
+        return res.status(400).json({ error: 'Valor de progresso inválido' });
+      }
+
+      const updatedGoal = await storage.updateGoalProgress(id, value);
+      if (!updatedGoal) {
+        return res.status(404).json({ error: 'Meta financeira não encontrada' });
+      }
+      
+      res.json(updatedGoal);
+    } catch (error) {
+      log(`Erro ao atualizar progresso da meta: ${error.message}`, 'routes');
+      res.status(500).json({ error: 'Erro ao atualizar progresso da meta' });
+    }
+  });
+
+  app.post('/api/financial-goals/check-progress', async (req, res) => {
+    try {
+      const result = await storage.checkGoalsProgress();
+      res.json(result);
+    } catch (error) {
+      log(`Erro ao verificar progresso das metas: ${error.message}`, 'routes');
+      res.status(500).json({ error: 'Erro ao verificar progresso das metas' });
+    }
+  });
+
+  // Achievement API Routes
+  app.get('/api/achievements', async (req, res) => {
+    try {
+      const achievements = await storage.getAchievements();
+      res.json(achievements);
+    } catch (error) {
+      log(`Erro ao buscar conquistas: ${error.message}`, 'routes');
+      res.status(500).json({ error: 'Erro ao buscar conquistas' });
+    }
+  });
+
+  app.get('/api/achievements/user', async (req, res) => {
+    try {
+      const userAchievements = await storage.getUserAchievements();
+      res.json(userAchievements);
+    } catch (error) {
+      log(`Erro ao buscar conquistas do usuário: ${error.message}`, 'routes');
+      res.status(500).json({ error: 'Erro ao buscar conquistas do usuário' });
+    }
+  });
+
+  app.get('/api/achievements/:id', async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: 'ID de conquista inválido' });
+      }
+
+      const achievement = await storage.getAchievement(id);
+      if (!achievement) {
+        return res.status(404).json({ error: 'Conquista não encontrada' });
+      }
+
+      res.json(achievement);
+    } catch (error) {
+      log(`Erro ao buscar conquista: ${error.message}`, 'routes');
+      res.status(500).json({ error: 'Erro ao buscar conquista' });
+    }
+  });
+
+  app.post('/api/achievements', async (req, res) => {
+    try {
+      const achievementData = insertAchievementSchema.parse(req.body);
+      const newAchievement = await storage.createAchievement(achievementData);
+      res.status(201).json(newAchievement);
+    } catch (error) {
+      handleValidationError(error, res);
+    }
+  });
+
+  app.put('/api/achievements/:id', async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: 'ID de conquista inválido' });
+      }
+
+      const achievementData = req.body;
+      const updatedAchievement = await storage.updateAchievement(id, achievementData);
+      
+      if (!updatedAchievement) {
+        return res.status(404).json({ error: 'Conquista não encontrada' });
+      }
+      
+      res.json(updatedAchievement);
+    } catch (error) {
+      handleValidationError(error, res);
+    }
+  });
+
+  app.delete('/api/achievements/:id', async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: 'ID de conquista inválido' });
+      }
+
+      const success = await storage.deleteAchievement(id);
+      if (!success) {
+        return res.status(404).json({ error: 'Conquista não encontrada' });
+      }
+      
+      res.status(204).send();
+    } catch (error) {
+      log(`Erro ao excluir conquista: ${error.message}`, 'routes');
+      res.status(500).json({ error: 'Erro ao excluir conquista' });
+    }
+  });
+
+  app.post('/api/achievements/:id/award', async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: 'ID de conquista inválido' });
+      }
+
+      const success = await storage.awardAchievement(id);
+      if (!success) {
+        return res.status(400).json({ error: 'Não foi possível conceder a conquista' });
+      }
+      
+      res.status(200).json({ success: true });
+    } catch (error) {
+      log(`Erro ao conceder conquista: ${error.message}`, 'routes');
+      res.status(500).json({ error: 'Erro ao conceder conquista' });
     }
   });
 

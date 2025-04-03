@@ -10,7 +10,9 @@ import {
   Receipt, 
   Settings,
   LogOut,
-  Calendar
+  Calendar,
+  Target,
+  Award
 } from "lucide-react";
 
 const Sidebar = () => {
@@ -23,6 +25,8 @@ const Sidebar = () => {
     { href: "/financial", label: "Financeiro", icon: DollarSign },
     { href: "/reports", label: "Relatórios", icon: FileText },
     { href: "/invoices", label: "Notas Fiscais", icon: Receipt },
+    { href: "/metas", label: "Metas", icon: Target },
+    { href: "/conquistas", label: "Conquistas", icon: Award },
   ];
 
   return (

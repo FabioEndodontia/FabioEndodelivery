@@ -12,6 +12,8 @@ import Financial from "@/pages/financial";
 import Reports from "@/pages/reports";
 import Invoices from "@/pages/invoices";
 import Appointments from "@/pages/appointments";
+import Goals from "./pages/Goals";
+import Achievements from "./pages/Achievements";
 import Sidebar from "@/components/ui/sidebar";
 import ConnectivityStatus from "@/components/ui/connectivity-status";
 
@@ -37,6 +39,10 @@ function Router() {
         return "Relatórios";
       case location === "/invoices":
         return "Notas Fiscais";
+      case location === "/metas":
+        return "Metas";
+      case location === "/conquistas":
+        return "Conquistas";
       default:
         return "EndoFinance";
     }
@@ -61,6 +67,10 @@ function Router() {
         return "Relatórios e análises";
       case location === "/invoices":
         return "Controle de notas fiscais";
+      case location === "/metas":
+        return "Estabelecer e acompanhar metas financeiras";
+      case location === "/conquistas":
+        return "Visualizar suas conquistas e recompensas";
       default:
         return "";
     }
@@ -90,6 +100,8 @@ function Router() {
             <Route path="/financial" component={Financial} />
             <Route path="/reports" component={Reports} />
             <Route path="/invoices" component={Invoices} />
+            <Route path="/metas" component={Goals} />
+            <Route path="/conquistas" component={Achievements} />
             <Route component={NotFound} />
           </Switch>
         </main>

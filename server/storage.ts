@@ -1,10 +1,13 @@
 import {
-  patients, dentists, procedures, invoices, appointments,
+  patients, dentists, procedures, invoices, appointments, financialGoals, achievements, userAchievements,
   type Patient, type InsertPatient,
   type Dentist, type InsertDentist,
   type Procedure, type InsertProcedure,
   type Invoice, type InsertInvoice,
-  type Appointment, type InsertAppointment
+  type Appointment, type InsertAppointment,
+  type FinancialGoal, type InsertFinancialGoal,
+  type Achievement, type InsertAchievement,
+  type UserAchievement
 } from "@shared/schema";
 
 // Storage interface for all CRUD operations
@@ -64,6 +67,25 @@ export interface IStorage {
   getPendingPayments(): Promise<Procedure[]>;
   getPendingInvoices(): Promise<Procedure[]>;
   getUpcomingAppointments(limit: number): Promise<Appointment[]>;
+  
+  // Gamification - Financial Goals
+  getFinancialGoals(): Promise<FinancialGoal[]>;
+  getFinancialGoal(id: number): Promise<FinancialGoal | undefined>;
+  createFinancialGoal(goal: InsertFinancialGoal): Promise<FinancialGoal>;
+  updateFinancialGoal(id: number, goal: Partial<InsertFinancialGoal>): Promise<FinancialGoal | undefined>;
+  updateGoalProgress(id: number, newValue: number): Promise<FinancialGoal | undefined>;
+  deleteFinancialGoal(id: number): Promise<boolean>;
+  getActiveGoals(): Promise<FinancialGoal[]>;
+  checkGoalsProgress(): Promise<{ updatedGoals: number, completedGoals: number }>;
+  
+  // Gamification - Achievements
+  getAchievements(): Promise<Achievement[]>;
+  getAchievement(id: number): Promise<Achievement | undefined>;
+  createAchievement(achievement: InsertAchievement): Promise<Achievement>;
+  updateAchievement(id: number, achievement: Partial<InsertAchievement>): Promise<Achievement | undefined>;
+  deleteAchievement(id: number): Promise<boolean>;
+  getUserAchievements(): Promise<(Achievement & { earnedDate: Date })[]>;
+  awardAchievement(achievementId: number): Promise<boolean>;
 }
 
 export class MemStorage implements IStorage {
@@ -72,12 +94,18 @@ export class MemStorage implements IStorage {
   private procedures: Map<number, Procedure>;
   private invoices: Map<number, Invoice>;
   private appointments: Map<number, Appointment>;
+  private financialGoals: Map<number, FinancialGoal>;
+  private achievements: Map<number, Achievement>;
+  private userAchievements: Map<number, UserAchievement>;
   
   private patientId: number;
   private dentistId: number;
   private procedureId: number;
   private invoiceId: number;
   private appointmentId: number;
+  private financialGoalId: number;
+  private achievementId: number;
+  private userAchievementId: number;
 
   constructor() {
     this.patients = new Map();
@@ -85,12 +113,18 @@ export class MemStorage implements IStorage {
     this.procedures = new Map();
     this.invoices = new Map();
     this.appointments = new Map();
+    this.financialGoals = new Map();
+    this.achievements = new Map();
+    this.userAchievements = new Map();
     
     this.patientId = 1;
     this.dentistId = 1;
     this.procedureId = 1;
     this.invoiceId = 1;
     this.appointmentId = 1;
+    this.financialGoalId = 1;
+    this.achievementId = 1;
+    this.userAchievementId = 1;
 
     // Initialize with some sample data
     this.initializeSampleData();
@@ -403,6 +437,201 @@ export class MemStorage implements IStorage {
       .filter(appointment => new Date(appointment.appointmentDate) >= now && !appointment.convertedToProcedure)
       .sort((a, b) => new Date(a.appointmentDate).getTime() - new Date(b.appointmentDate).getTime())
       .slice(0, limit);
+  }
+
+  // Gamification - Financial Goals operations
+  async getFinancialGoals(): Promise<FinancialGoal[]> {
+    return Array.from(this.financialGoals.values());
+  }
+
+  async getFinancialGoal(id: number): Promise<FinancialGoal | undefined> {
+    return this.financialGoals.get(id);
+  }
+
+  async createFinancialGoal(goalData: InsertFinancialGoal): Promise<FinancialGoal> {
+    const id = this.financialGoalId++;
+    const now = new Date();
+    const goal: FinancialGoal = {
+      ...goalData,
+      id,
+      createdAt: now,
+      currentValue: 0,
+      isCompleted: false,
+      isActive: true
+    };
+    this.financialGoals.set(id, goal);
+    return goal;
+  }
+
+  async updateFinancialGoal(id: number, goalData: Partial<InsertFinancialGoal>): Promise<FinancialGoal | undefined> {
+    const goal = this.financialGoals.get(id);
+    if (!goal) return undefined;
+    
+    const updatedGoal: FinancialGoal = { ...goal, ...goalData };
+    this.financialGoals.set(id, updatedGoal);
+    return updatedGoal;
+  }
+
+  async updateGoalProgress(id: number, newValue: number): Promise<FinancialGoal | undefined> {
+    const goal = this.financialGoals.get(id);
+    if (!goal) return undefined;
+    
+    const updatedGoal: FinancialGoal = { 
+      ...goal, 
+      currentValue: goal.currentValue + newValue,
+      isCompleted: (goal.currentValue + newValue) >= goal.targetValue
+    };
+    this.financialGoals.set(id, updatedGoal);
+    return updatedGoal;
+  }
+
+  async deleteFinancialGoal(id: number): Promise<boolean> {
+    return this.financialGoals.delete(id);
+  }
+
+  async getActiveGoals(): Promise<FinancialGoal[]> {
+    const now = new Date();
+    return Array.from(this.financialGoals.values())
+      .filter(goal => 
+        goal.isActive && 
+        !goal.isCompleted && 
+        new Date(goal.startDate) <= now && 
+        new Date(goal.endDate) >= now
+      );
+  }
+
+  async checkGoalsProgress(): Promise<{ updatedGoals: number, completedGoals: number }> {
+    const activeGoals = await this.getActiveGoals();
+    let updatedCount = 0;
+    let completedCount = 0;
+
+    // For revenue goals, calculate total revenue in the period
+    for (const goal of activeGoals) {
+      if (goal.goalType === 'REVENUE') {
+        const procedures = Array.from(this.procedures.values())
+          .filter(p => 
+            new Date(p.procedureDate) >= new Date(goal.startDate) && 
+            new Date(p.procedureDate) <= new Date(goal.endDate) &&
+            p.paymentStatus === 'PAID' &&
+            (goal.dentistId ? p.dentistId === goal.dentistId : true) &&
+            (goal.procedureType ? p.procedureType === goal.procedureType : true)
+          );
+        
+        const totalRevenue = procedures.reduce((sum, p) => sum + p.value, 0);
+        if (totalRevenue > goal.currentValue) {
+          goal.currentValue = totalRevenue;
+          if (totalRevenue >= goal.targetValue && !goal.isCompleted) {
+            goal.isCompleted = true;
+            completedCount++;
+          }
+          this.financialGoals.set(goal.id, goal);
+          updatedCount++;
+        }
+      } else if (goal.goalType === 'PROCEDURE_COUNT') {
+        const procedures = Array.from(this.procedures.values())
+          .filter(p => 
+            new Date(p.procedureDate) >= new Date(goal.startDate) && 
+            new Date(p.procedureDate) <= new Date(goal.endDate) &&
+            (goal.dentistId ? p.dentistId === goal.dentistId : true) &&
+            (goal.procedureType ? p.procedureType === goal.procedureType : true)
+          );
+        
+        if (procedures.length > goal.currentValue) {
+          goal.currentValue = procedures.length;
+          if (procedures.length >= goal.targetValue && !goal.isCompleted) {
+            goal.isCompleted = true;
+            completedCount++;
+          }
+          this.financialGoals.set(goal.id, goal);
+          updatedCount++;
+        }
+      } else if (goal.goalType === 'NEW_PATIENTS') {
+        const patients = Array.from(this.patients.values())
+          .filter(p => 
+            new Date(p.createdAt) >= new Date(goal.startDate) && 
+            new Date(p.createdAt) <= new Date(goal.endDate)
+          );
+        
+        if (patients.length > goal.currentValue) {
+          goal.currentValue = patients.length;
+          if (patients.length >= goal.targetValue && !goal.isCompleted) {
+            goal.isCompleted = true;
+            completedCount++;
+          }
+          this.financialGoals.set(goal.id, goal);
+          updatedCount++;
+        }
+      }
+    }
+
+    return { updatedGoals: updatedCount, completedGoals: completedCount };
+  }
+
+  // Gamification - Achievements operations
+  async getAchievements(): Promise<Achievement[]> {
+    return Array.from(this.achievements.values());
+  }
+
+  async getAchievement(id: number): Promise<Achievement | undefined> {
+    return this.achievements.get(id);
+  }
+
+  async createAchievement(achievementData: InsertAchievement): Promise<Achievement> {
+    const id = this.achievementId++;
+    const now = new Date();
+    const achievement: Achievement = { ...achievementData, id, createdAt: now };
+    this.achievements.set(id, achievement);
+    return achievement;
+  }
+
+  async updateAchievement(id: number, achievementData: Partial<InsertAchievement>): Promise<Achievement | undefined> {
+    const achievement = this.achievements.get(id);
+    if (!achievement) return undefined;
+    
+    const updatedAchievement: Achievement = { ...achievement, ...achievementData };
+    this.achievements.set(id, updatedAchievement);
+    return updatedAchievement;
+  }
+
+  async deleteAchievement(id: number): Promise<boolean> {
+    return this.achievements.delete(id);
+  }
+
+  async getUserAchievements(): Promise<(Achievement & { earnedDate: Date })[]> {
+    const userAchievements = Array.from(this.userAchievements.values());
+    return userAchievements.map(ua => {
+      const achievement = this.achievements.get(ua.achievementId);
+      if (!achievement) {
+        throw new Error(`Achievement ${ua.achievementId} not found`);
+      }
+      return {
+        ...achievement,
+        earnedDate: ua.earnedDate
+      };
+    });
+  }
+
+  async awardAchievement(achievementId: number): Promise<boolean> {
+    const achievement = this.achievements.get(achievementId);
+    if (!achievement) return false;
+    
+    // Check if the user already has this achievement
+    const hasAchievement = Array.from(this.userAchievements.values())
+      .some(ua => ua.achievementId === achievementId);
+    
+    if (hasAchievement) return false;
+    
+    const id = this.userAchievementId++;
+    const now = new Date();
+    const userAchievement: UserAchievement = {
+      id,
+      achievementId,
+      earnedDate: now,
+      createdAt: now
+    };
+    
+    this.userAchievements.set(id, userAchievement);
+    return true;
   }
 }
 

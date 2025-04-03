@@ -84,6 +84,9 @@ export default function Sidebar({ isOpen, closeSidebar }: SidebarProps) {
           <SidebarLink href="/relatorios" icon="ri-file-chart-line">
             Relatórios
           </SidebarLink>
+          <SidebarLink href="/metas" icon="ri-award-line">
+            Metas e Conquistas
+          </SidebarLink>
           <SidebarLink href="/configuracoes" icon="ri-settings-3-line">
             Configurações
           </SidebarLink>
