@@ -210,6 +210,15 @@ export const GOAL_DIFFICULTY = [
   "EXPERT"
 ] as const;
 
+// Tipos de gamificação
+export const ACHIEVEMENT_TYPES = [
+  "MILESTONE",    // Marcos/objetivos atingidos (ex: completar 10 procedimentos)
+  "PERFORMANCE",  // Desempenho excepcional (ex: atingir valor alto em faturamento)
+  "MASTERY",      // Maestria em uma habilidade (ex: tornar-se especialista em um tipo de procedimento)
+  "CONSISTENCY",  // Consistência em comportamentos (ex: completar metas por X meses consecutivos)
+  "SPECIAL"       // Conquistas especiais ou eventos únicos
+] as const;
+
 // Tabela de metas financeiras
 export const financialGoals = pgTable("financial_goals", {
   id: serial("id").primaryKey(),
@@ -236,6 +245,7 @@ export const achievements = pgTable("achievements", {
   description: text("description").notNull(),
   iconName: text("icon_name").notNull(),
   points: integer("points").notNull(),
+  achievementType: text("achievement_type").notNull().default("MILESTONE"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -269,6 +279,10 @@ export const insertAchievementSchema = createInsertSchema(achievements)
   .omit({
     id: true,
     createdAt: true,
+  })
+  .extend({
+    achievementType: z.enum(ACHIEVEMENT_TYPES),
+    points: z.coerce.number().min(1).max(100),
   });
 
 export type PaymentMethod = typeof PAYMENT_METHODS[number];
@@ -279,6 +293,7 @@ export type AppointmentStatus = typeof APPOINTMENT_STATUS[number];
 export type GoalType = typeof GOAL_TYPES[number];
 export type GoalFrequency = typeof GOAL_FREQUENCIES[number];
 export type GoalDifficulty = typeof GOAL_DIFFICULTY[number];
+export type AchievementType = typeof ACHIEVEMENT_TYPES[number];
 
 export type FinancialGoal = typeof financialGoals.$inferSelect;
 export type InsertFinancialGoal = z.infer<typeof insertFinancialGoalSchema>;

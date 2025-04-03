@@ -140,7 +140,7 @@ const GoalItem: React.FC<{ goal: Goal }> = ({ goal }) => {
         return "bg-yellow-100 text-yellow-800";
       case "HARD":
         return "bg-orange-100 text-orange-800";
-      case "VERY_HARD":
+      case "EXPERT":
         return "bg-red-100 text-red-800";
       default:
         return "bg-slate-100 text-slate-800";
@@ -200,7 +200,7 @@ const GoalItem: React.FC<{ goal: Goal }> = ({ goal }) => {
             {goal.difficulty === "EASY" && "Fácil"}
             {goal.difficulty === "MEDIUM" && "Média"}
             {goal.difficulty === "HARD" && "Difícil"}
-            {goal.difficulty === "VERY_HARD" && "Muito Difícil"}
+            {goal.difficulty === "EXPERT" && "Especialista"}
           </Badge>
           <Badge variant="outline">{getFrequencyText(goal.frequency)}</Badge>
         </CardDescription>
@@ -639,7 +639,7 @@ export default function Goals() {
                           <SelectItem value="EASY">Fácil</SelectItem>
                           <SelectItem value="MEDIUM">Média</SelectItem>
                           <SelectItem value="HARD">Difícil</SelectItem>
-                          <SelectItem value="VERY_HARD">Muito Difícil</SelectItem>
+                          <SelectItem value="EXPERT">Especialista</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />
