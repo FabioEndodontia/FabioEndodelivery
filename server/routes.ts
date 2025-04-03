@@ -9,8 +9,19 @@ import {
   insertInvoiceSchema 
 } from "@shared/schema";
 import { fromZodError } from "zod-validation-error";
+import { DatabaseStorage } from "./database-storage";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Initialize the database with sample data if empty
+  if (storage instanceof DatabaseStorage) {
+    try {
+      await (storage as DatabaseStorage).seedInitialData();
+      console.log('Database initialized successfully');
+    } catch (error) {
+      console.error('Error initializing database:', error);
+    }
+  }
+
   // Error handler for validation errors
   const handleValidationError = (err: unknown, res: Response) => {
     if (err instanceof ZodError) {

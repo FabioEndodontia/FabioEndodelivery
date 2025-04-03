@@ -4,9 +4,9 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { insertPatientSchema, InsertPatient } from "@shared/schema";
+import { insertPatientSchema, InsertPatient, Dentist } from "@shared/schema";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { apiRequest } from "@/lib/queryClient";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -23,18 +23,21 @@ const PatientForm: React.FC<PatientFormProps> = ({ onSuccess, onCancel, patientI
   const isEditing = !!patientId;
 
   // Fetch patient data if editing
-  const { data: patientData, isLoading } = useQuery({
+  const { data: patientData, isLoading: isLoadingPatient } = useQuery({
     queryKey: [patientId ? `/api/patients/${patientId}` : null],
     enabled: isEditing,
+  });
+
+  // Fetch dentists for select dropdown
+  const { data: dentists, isLoading: isLoadingDentists } = useQuery<Dentist[]>({
+    queryKey: ['/api/dentists'],
   });
 
   const form = useForm<InsertPatient>({
     resolver: zodResolver(insertPatientSchema),
     defaultValues: {
       name: "",
-      phone: "",
-      email: "",
-      notes: "",
+      dentistId: 0,
     },
   });
 
@@ -76,6 +79,8 @@ const PatientForm: React.FC<PatientFormProps> = ({ onSuccess, onCancel, patientI
     }
   };
 
+  const isLoading = isLoadingPatient || isLoadingDentists;
+
   return (
     <Card>
       <CardContent className="p-6">
@@ -95,48 +100,35 @@ const PatientForm: React.FC<PatientFormProps> = ({ onSuccess, onCancel, patientI
               )}
             />
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <FormField
-                control={form.control}
-                name="phone"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Telefone</FormLabel>
-                    <FormControl>
-                      <Input placeholder="(00) 00000-0000" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>E-mail</FormLabel>
-                    <FormControl>
-                      <Input placeholder="exemplo@email.com" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
             <FormField
               control={form.control}
-              name="notes"
+              name="dentistId"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Observações</FormLabel>
-                  <FormControl>
-                    <Textarea 
-                      placeholder="Observações adicionais sobre o paciente" 
-                      {...field} 
-                    />
-                  </FormControl>
+                  <FormLabel>Dentista Responsável</FormLabel>
+                  <Select 
+                    onValueChange={(value) => field.onChange(Number(value))}
+                    defaultValue={field.value ? String(field.value) : undefined}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione o dentista responsável" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {Array.isArray(dentists) && dentists.length > 0 ? (
+                        dentists.map((dentist) => (
+                          <SelectItem key={dentist.id} value={String(dentist.id)}>
+                            {dentist.name}
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <SelectItem value="0" disabled>
+                          Nenhum dentista cadastrado
+                        </SelectItem>
+                      )}
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}

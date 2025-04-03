@@ -5,8 +5,7 @@ import {
   Search, 
   Edit, 
   Trash, 
-  Mail, 
-  Phone, 
+  User, 
   FileText 
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -42,6 +41,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import PatientForm from "@/components/forms/patient-form";
 import { apiRequest } from "@/lib/queryClient";
+import { Patient, Dentist } from "@shared/schema";
 
 const Patients = () => {
   const { toast } = useToast();
@@ -52,16 +52,21 @@ const Patients = () => {
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
 
   // Fetch patients
-  const { data: patients, isLoading } = useQuery({
+  const { data: patients, isLoading: isLoadingPatients } = useQuery<Patient[]>({
     queryKey: ['/api/patients'],
   });
 
+  // Fetch dentists to display dentist name
+  const { data: dentists, isLoading: isLoadingDentists } = useQuery<Dentist[]>({
+    queryKey: ['/api/dentists'],
+  });
+
   // Filter patients based on search
-  const filteredPatients = patients?.filter(patient => 
-    patient.name.toLowerCase().includes(search.toLowerCase()) ||
-    (patient.email && patient.email.toLowerCase().includes(search.toLowerCase())) ||
-    (patient.phone && patient.phone.includes(search))
-  );
+  const filteredPatients = Array.isArray(patients) && patients.length > 0
+    ? patients.filter((patient: Patient) => 
+        patient.name.toLowerCase().includes(search.toLowerCase())
+      )
+    : [];
 
   const handleDelete = async () => {
     if (!deleteConfirmId) return;
@@ -87,6 +92,14 @@ const Patients = () => {
       setDeleteConfirmId(null);
     }
   };
+
+  const getDentistName = (dentistId: number) => {
+    if (!Array.isArray(dentists) || dentists.length === 0) return "Não informado";
+    const dentist = dentists.find((d: Dentist) => d.id === dentistId);
+    return dentist?.name || "Não informado";
+  };
+
+  const isLoading = isLoadingPatients || isLoadingDentists;
 
   return (
     <div className="space-y-6">
@@ -121,34 +134,21 @@ const Patients = () => {
               <TableHeader>
                 <TableRow>
                   <TableHead>Nome</TableHead>
-                  <TableHead>Contato</TableHead>
-                  <TableHead>E-mail</TableHead>
-                  <TableHead>Observações</TableHead>
+                  <TableHead>Dentista Responsável</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredPatients && filteredPatients.length > 0 ? (
-                  filteredPatients.map((patient) => (
+                  filteredPatients.map((patient: Patient) => (
                     <TableRow key={patient.id}>
                       <TableCell className="font-medium">{patient.name}</TableCell>
                       <TableCell>
-                        {patient.phone && (
-                          <div className="flex items-center text-sm">
-                            <Phone className="h-3 w-3 mr-1" />
-                            {patient.phone}
-                          </div>
-                        )}
+                        <div className="flex items-center text-sm">
+                          <User className="h-3 w-3 mr-1" />
+                          {getDentistName(patient.dentistId)}
+                        </div>
                       </TableCell>
-                      <TableCell>
-                        {patient.email && (
-                          <div className="flex items-center text-sm">
-                            <Mail className="h-3 w-3 mr-1" />
-                            {patient.email}
-                          </div>
-                        )}
-                      </TableCell>
-                      <TableCell className="max-w-xs truncate">{patient.notes}</TableCell>
                       <TableCell className="text-right">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
@@ -178,7 +178,7 @@ const Patients = () => {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-6 text-muted-foreground">
+                    <TableCell colSpan={3} className="text-center py-6 text-muted-foreground">
                       {search ? "Nenhum paciente encontrado para esta busca." : "Nenhum paciente registrado."}
                     </TableCell>
                   </TableRow>
@@ -199,7 +199,7 @@ const Patients = () => {
           }
         }}
       >
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>
               {editPatientId ? "Editar Paciente" : "Novo Paciente"}
