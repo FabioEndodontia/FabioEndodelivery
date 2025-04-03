@@ -142,12 +142,14 @@ export const ProcedureReport = ({ data }: ProcedureReportProps) => {
             <Text style={styles.label}>Nome:</Text>
             <Text style={styles.value}>{patient.name}</Text>
             
-            {patient.phone && (
-              <>
-                <Text style={styles.label}>Telefone:</Text>
-                <Text style={styles.value}>{patient.phone}</Text>
-              </>
-            )}
+            {/* Comentado até adicionar telefone ao paciente 
+              {patient.phone && (
+                <>
+                  <Text style={styles.label}>Telefone:</Text>
+                  <Text style={styles.value}>{patient.phone}</Text>
+                </>
+              )}
+            */}
           </View>
           
           <View style={styles.column}>

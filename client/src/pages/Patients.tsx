@@ -12,6 +12,13 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Form,
   FormControl,
   FormField,
@@ -36,17 +43,27 @@ export default function Patients() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState<any>(null);
   
-  const { data: patients, isLoading } = useQuery({
+  const { data: patients = [], isLoading: isLoadingPatients } = useQuery({
     queryKey: ["/api/patients"],
   });
   
+  const { data: dentists = [], isLoading: isLoadingDentists } = useQuery({
+    queryKey: ["/api/dentists"],
+  });
+  
   const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
+    resolver: zodResolver(formSchema.extend({
+      dentistId: z.number({
+        required_error: "Selecione um dentista responsável",
+        invalid_type_error: "Selecione um dentista válido",
+      }).min(1, "Selecione um dentista responsável"),
+    })),
     defaultValues: {
       name: "",
       phone: "",
       email: "",
       notes: "",
+      dentistId: undefined,
     },
   });
   
@@ -105,6 +122,7 @@ export default function Patients() {
       phone: "",
       email: "",
       notes: "",
+      dentistId: undefined,
     });
     setSelectedPatient(null);
     setDialogOpen(true);
@@ -116,6 +134,7 @@ export default function Patients() {
       phone: patient.phone || "",
       email: patient.email || "",
       notes: patient.notes || "",
+      dentistId: patient.dentistId,
     });
     setSelectedPatient(patient);
     setDialogOpen(true);
@@ -143,15 +162,24 @@ export default function Patients() {
       header: "Email",
     },
     {
+      id: "dentist",
+      header: "Dentista Responsável",
+      cell: ({ row }: any) => {
+        const patient = row.original;
+        const dentist = dentists.find((d: any) => d.id === patient.dentistId);
+        return dentist ? dentist.name : "Não atribuído";
+      }
+    },
+    {
       accessorKey: "actions",
       header: "Ações",
-      cell: (patient: any) => (
+      cell: ({ row }: any) => (
         <Button 
           variant="ghost" 
           size="sm" 
           onClick={(e) => {
             e.stopPropagation();
-            handleEditPatient(patient);
+            handleEditPatient(row.original);
           }}
         >
           <i className="ri-edit-line mr-1"></i> Editar
@@ -170,11 +198,11 @@ export default function Patients() {
       </div>
       
       <div className="bg-white rounded-lg shadow-sm p-6">
-        {isLoading ? (
+        {isLoadingPatients || isLoadingDentists ? (
           <div className="text-center py-4">Carregando...</div>
         ) : (
           <DataTable 
-            data={patients || []}
+            data={patients}
             columns={columns}
             searchable
             searchKey="name"
@@ -244,6 +272,41 @@ export default function Patients() {
                     <FormControl>
                       <Textarea placeholder="Observações sobre o paciente" {...field} />
                     </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="dentistId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Dentista Responsável</FormLabel>
+                    <Select 
+                      onValueChange={(value) => field.onChange(Number(value))}
+                      value={field.value ? String(field.value) : undefined}
+                      required
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione o dentista responsável" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {dentists && dentists.length > 0 ? (
+                          dentists.map((dentist: any) => (
+                            <SelectItem key={dentist.id} value={String(dentist.id)}>
+                              {dentist.name}
+                            </SelectItem>
+                          ))
+                        ) : (
+                          <SelectItem value="0" disabled>
+                            Nenhum dentista cadastrado
+                          </SelectItem>
+                        )}
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}

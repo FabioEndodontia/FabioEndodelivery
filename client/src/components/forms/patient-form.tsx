@@ -34,10 +34,14 @@ const PatientForm: React.FC<PatientFormProps> = ({ onSuccess, onCancel, patientI
   });
 
   const form = useForm<InsertPatient>({
-    resolver: zodResolver(insertPatientSchema),
+    resolver: zodResolver(insertPatientSchema.extend({
+      dentistId: insertPatientSchema.shape.dentistId.refine(val => val > 0, {
+        message: "Selecione um dentista responsável"
+      })
+    })),
     defaultValues: {
       name: "",
-      dentistId: 0,
+      dentistId: undefined,
     },
   });
 
@@ -108,7 +112,8 @@ const PatientForm: React.FC<PatientFormProps> = ({ onSuccess, onCancel, patientI
                   <FormLabel>Dentista Responsável</FormLabel>
                   <Select 
                     onValueChange={(value) => field.onChange(Number(value))}
-                    defaultValue={field.value ? String(field.value) : undefined}
+                    value={field.value ? String(field.value) : undefined}
+                    required
                   >
                     <FormControl>
                       <SelectTrigger>
