@@ -1,9 +1,11 @@
 import {
-  patients, dentists, procedures, invoices,
+  patients, dentists, procedures, invoices, appointments,
   type Patient, type InsertPatient,
   type Dentist, type InsertDentist,
   type Procedure, type InsertProcedure,
-  type Invoice, type InsertInvoice
+  type Invoice, type InsertInvoice,
+  type Appointment, type InsertAppointment,
+  PROCEDURE_TYPES
 } from "@shared/schema";
 import { IStorage } from "./storage";
 import { db } from "./db";
@@ -326,5 +328,137 @@ export class DatabaseStorage implements IStorage {
     ];
 
     await db.insert(patients).values(patientData).returning();
+  }
+
+  // Appointment operations
+  async getAppointments(): Promise<Appointment[]> {
+    return await db.select().from(appointments);
+  }
+
+  async getAppointmentsByPatient(patientId: number): Promise<Appointment[]> {
+    return await db
+      .select()
+      .from(appointments)
+      .where(eq(appointments.patientId, patientId));
+  }
+
+  async getAppointmentsByDentist(dentistId: number): Promise<Appointment[]> {
+    return await db
+      .select()
+      .from(appointments)
+      .where(eq(appointments.dentistId, dentistId));
+  }
+
+  async getUpcomingAppointments(limit: number): Promise<Appointment[]> {
+    const now = new Date();
+    return await db
+      .select()
+      .from(appointments)
+      .where(
+        and(
+          gte(appointments.appointmentDate, now),
+          eq(appointments.status, "SCHEDULED")
+        )
+      )
+      .orderBy(appointments.appointmentDate)
+      .limit(limit);
+  }
+
+  async getAppointment(id: number): Promise<Appointment | undefined> {
+    const [appointment] = await db
+      .select()
+      .from(appointments)
+      .where(eq(appointments.id, id));
+    
+    return appointment;
+  }
+
+  async createAppointment(appointmentData: InsertAppointment): Promise<Appointment> {
+    const [appointment] = await db
+      .insert(appointments)
+      .values(appointmentData)
+      .returning();
+    
+    return appointment;
+  }
+
+  async updateAppointment(id: number, appointmentData: Partial<InsertAppointment>): Promise<Appointment | undefined> {
+    const [updatedAppointment] = await db
+      .update(appointments)
+      .set(appointmentData)
+      .where(eq(appointments.id, id))
+      .returning();
+    
+    return updatedAppointment;
+  }
+
+  async deleteAppointment(id: number): Promise<boolean> {
+    const [deletedAppointment] = await db
+      .delete(appointments)
+      .where(eq(appointments.id, id))
+      .returning();
+    
+    return !!deletedAppointment;
+  }
+
+  async convertAppointmentToProcedure(id: number): Promise<Procedure | undefined> {
+    // Obter o agendamento
+    const appointment = await this.getAppointment(id);
+    if (!appointment || appointment.convertedToProcedure) {
+      return undefined;
+    }
+
+    // Verificar se temos os dados necessários para criar um procedimento
+    if (!appointment.patientId || !appointment.dentistId || !appointment.toothNumber || !appointment.procedureType) {
+      throw new Error("Appointment doesn't have all required data to create a procedure");
+    }
+
+    // Criar procedimento
+    const procedureData: InsertProcedure = {
+      patientId: appointment.patientId,
+      dentistId: appointment.dentistId,
+      toothNumber: appointment.toothNumber,
+      procedureType: appointment.procedureType as typeof PROCEDURE_TYPES[number],
+      value: 0, // Valor padrão, deverá ser atualizado posteriormente
+      procedureDate: new Date().toISOString(),
+      paymentMethod: "PENDING",
+      paymentStatus: "PENDING",
+      notes: appointment.notes,
+      diagnosis: null,
+      prognosis: null,
+      canalMeasurements: null,
+      initialXrayUrl: null,
+      finalXrayUrl: null
+    };
+
+    // Inserir o procedimento
+    const procedure = await this.createProcedure(procedureData);
+
+    // Atualizar o agendamento para marcar como convertido
+    await this.updateAppointment(id, {
+      convertedToProcedure: true,
+      procedureId: procedure.id,
+      status: "COMPLETED"
+    } as any);
+
+    return procedure;
+  }
+
+  async syncCalendlyEvents(accessToken: string): Promise<{ created: number; updated: number; errors: number }> {
+    // Implementação simplificada de sincronização com Calendly
+    // Na versão real, aqui deveria ser uma integração com a API do Calendly
+    
+    try {
+      // Aqui deveria existir um código para buscar os eventos do Calendly
+      // Como estamos apenas simulando, retornaremos um resultado de sucesso
+      return {
+        created: 0,
+        updated: 0,
+        errors: 0
+      };
+    } catch (error) {
+      console.error("Error syncing with Calendly:", error);
+      throw new Error("Failed to sync with Calendly");
+    }
   }
 }
