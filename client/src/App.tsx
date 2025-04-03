@@ -13,6 +13,7 @@ import Reports from "@/pages/reports";
 import Invoices from "@/pages/invoices";
 import Appointments from "@/pages/appointments";
 import Sidebar from "@/components/ui/sidebar";
+import ConnectivityStatus from "@/components/ui/connectivity-status";
 
 function Router() {
   const [location] = useLocation();
@@ -112,6 +113,7 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <Router />
+      <ConnectivityStatus />
       <Toaster />
     </QueryClientProvider>
   );
