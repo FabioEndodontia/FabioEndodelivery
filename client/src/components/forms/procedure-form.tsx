@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Card, CardContent } from "@/components/ui/card";
@@ -16,6 +16,7 @@ import {
 } from "@/lib/utils";
 import { apiRequest } from "@/lib/queryClient";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Image, UploadCloud, X } from "lucide-react"; // Ícones
 
 interface ProcedureFormProps {
   onSuccess?: () => void;
@@ -28,6 +29,16 @@ const ProcedureForm: React.FC<ProcedureFormProps> = ({ onSuccess, onCancel, proc
   const queryClient = useQueryClient();
   const [shouldCreateInvoice, setShouldCreateInvoice] = useState(false);
   const isEditing = !!procedureId;
+  
+  // Estados para controlar o upload de imagens
+  const [initialImageLoading, setInitialImageLoading] = useState(false);
+  const [finalImageLoading, setFinalImageLoading] = useState(false);
+  const [thirdImageLoading, setThirdImageLoading] = useState(false);
+  
+  // Referências para os inputs de arquivo
+  const initialImageInputRef = useRef<HTMLInputElement>(null);
+  const finalImageInputRef = useRef<HTMLInputElement>(null);
+  const thirdImageInputRef = useRef<HTMLInputElement>(null);
 
   // Fetch procedure data if editing
   const { data: procedureData, isLoading: isLoadingProcedure } = useQuery({
@@ -125,7 +136,64 @@ const ProcedureForm: React.FC<ProcedureFormProps> = ({ onSuccess, onCancel, proc
     }
   };
 
-  const isLoading = isLoadingProcedure || isLoadingPatients || isLoadingDentists;
+  // Função para fazer upload de imagem
+  const uploadImage = async (file: File, setLoading: React.Dispatch<React.SetStateAction<boolean>>, fieldName: "initialXrayUrl" | "finalXrayUrl" | "thirdXrayUrl") => {
+    try {
+      setLoading(true);
+      
+      const formData = new FormData();
+      formData.append('image', file);
+      
+      const response = await fetch('/api/upload/image', {
+        method: 'POST',
+        body: formData,
+      });
+      
+      if (!response.ok) {
+        throw new Error('Falha ao enviar imagem');
+      }
+      
+      const data = await response.json();
+      
+      // Atualiza o campo do formulário com a URL da imagem
+      form.setValue(fieldName, data.url);
+      
+      toast({
+        title: "Imagem enviada",
+        description: "A imagem foi enviada com sucesso.",
+      });
+    } catch (error) {
+      console.error('Erro ao enviar imagem:', error);
+      toast({
+        title: "Erro",
+        description: "Ocorreu um erro ao enviar a imagem.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  // Manipuladores para os campos de upload de imagens
+  const handleInitialImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      uploadImage(e.target.files[0], setInitialImageLoading, "initialXrayUrl");
+    }
+  };
+  
+  const handleFinalImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      uploadImage(e.target.files[0], setFinalImageLoading, "finalXrayUrl");
+    }
+  };
+  
+  const handleThirdImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      uploadImage(e.target.files[0], setThirdImageLoading, "thirdXrayUrl");
+    }
+  };
+
+  const isLoading = isLoadingProcedure || isLoadingPatients || isLoadingDentists || initialImageLoading || finalImageLoading || thirdImageLoading;
 
   return (
     <Card>
@@ -288,10 +356,55 @@ const ProcedureForm: React.FC<ProcedureFormProps> = ({ onSuccess, onCancel, proc
                 name="initialXrayUrl"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>URL da Radiografia Inicial</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Radiografia Inicial (URL)" {...field} />
-                    </FormControl>
+                    <FormLabel>Radiografia Inicial</FormLabel>
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <FormControl>
+                          <Input placeholder="Radiografia Inicial" {...field} />
+                        </FormControl>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          disabled={initialImageLoading}
+                          onClick={() => initialImageInputRef.current?.click()}
+                          className="flex items-center gap-1"
+                        >
+                          {initialImageLoading ? (
+                            <div className="h-4 w-4 animate-spin rounded-full border-2 border-foreground border-t-transparent" />
+                          ) : (
+                            <UploadCloud className="h-4 w-4" />
+                          )}
+                          Upload
+                        </Button>
+                      </div>
+                      {field.value && (
+                        <div className="flex items-center justify-between rounded-md border p-2">
+                          <div className="flex items-center gap-2">
+                            <Image className="h-4 w-4 text-muted-foreground" />
+                            <span className="text-xs text-muted-foreground truncate max-w-[200px]">
+                              {field.value.split('/').pop()}
+                            </span>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => form.setValue("initialXrayUrl", "")}
+                            className="h-6 w-6 p-0"
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      )}
+                      <input
+                        type="file"
+                        ref={initialImageInputRef}
+                        accept="image/*"
+                        onChange={handleInitialImageUpload}
+                        className="hidden"
+                      />
+                    </div>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -302,10 +415,55 @@ const ProcedureForm: React.FC<ProcedureFormProps> = ({ onSuccess, onCancel, proc
                 name="finalXrayUrl"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>URL da Radiografia Final</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Radiografia Final (URL)" {...field} />
-                    </FormControl>
+                    <FormLabel>Radiografia Final</FormLabel>
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <FormControl>
+                          <Input placeholder="Radiografia Final" {...field} />
+                        </FormControl>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          disabled={finalImageLoading}
+                          onClick={() => finalImageInputRef.current?.click()}
+                          className="flex items-center gap-1"
+                        >
+                          {finalImageLoading ? (
+                            <div className="h-4 w-4 animate-spin rounded-full border-2 border-foreground border-t-transparent" />
+                          ) : (
+                            <UploadCloud className="h-4 w-4" />
+                          )}
+                          Upload
+                        </Button>
+                      </div>
+                      {field.value && (
+                        <div className="flex items-center justify-between rounded-md border p-2">
+                          <div className="flex items-center gap-2">
+                            <Image className="h-4 w-4 text-muted-foreground" />
+                            <span className="text-xs text-muted-foreground truncate max-w-[200px]">
+                              {field.value.split('/').pop()}
+                            </span>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => form.setValue("finalXrayUrl", "")}
+                            className="h-6 w-6 p-0"
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      )}
+                      <input
+                        type="file"
+                        ref={finalImageInputRef}
+                        accept="image/*"
+                        onChange={handleFinalImageUpload}
+                        className="hidden"
+                      />
+                    </div>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -316,10 +474,55 @@ const ProcedureForm: React.FC<ProcedureFormProps> = ({ onSuccess, onCancel, proc
                 name="thirdXrayUrl"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>URL da Imagem Adicional</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Imagem Adicional (URL)" {...field} />
-                    </FormControl>
+                    <FormLabel>Imagem Adicional</FormLabel>
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <FormControl>
+                          <Input placeholder="Imagem Adicional" {...field} />
+                        </FormControl>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          disabled={thirdImageLoading}
+                          onClick={() => thirdImageInputRef.current?.click()}
+                          className="flex items-center gap-1"
+                        >
+                          {thirdImageLoading ? (
+                            <div className="h-4 w-4 animate-spin rounded-full border-2 border-foreground border-t-transparent" />
+                          ) : (
+                            <UploadCloud className="h-4 w-4" />
+                          )}
+                          Upload
+                        </Button>
+                      </div>
+                      {field.value && (
+                        <div className="flex items-center justify-between rounded-md border p-2">
+                          <div className="flex items-center gap-2">
+                            <Image className="h-4 w-4 text-muted-foreground" />
+                            <span className="text-xs text-muted-foreground truncate max-w-[200px]">
+                              {field.value.split('/').pop()}
+                            </span>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => form.setValue("thirdXrayUrl", "")}
+                            className="h-6 w-6 p-0"
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      )}
+                      <input
+                        type="file"
+                        ref={thirdImageInputRef}
+                        accept="image/*"
+                        onChange={handleThirdImageUpload}
+                        className="hidden"
+                      />
+                    </div>
                     <FormMessage />
                   </FormItem>
                 )}

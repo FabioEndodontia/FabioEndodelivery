@@ -1,4 +1,4 @@
-import type { Express, Request, Response } from "express";
+import express, { type Express, type Request, type Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { ZodError } from "zod";
@@ -11,6 +11,44 @@ import {
 } from "@shared/schema";
 import { fromZodError } from "zod-validation-error";
 import { DatabaseStorage } from "./database-storage";
+import multer from "multer";
+import path from "path";
+import fs from "fs";
+
+// Configuração do Multer para armazenar os arquivos de imagem
+const storage_config = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadDir = path.join(process.cwd(), "uploads/images");
+    // Certifique-se de que o diretório existe
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    // Cria um nome de arquivo único com timestamp
+    const uniqueName = `${Date.now()}-${Math.round(Math.random() * 1E9)}${path.extname(file.originalname)}`;
+    cb(null, uniqueName);
+  }
+});
+
+// Filtro para permitir apenas imagens
+const fileFilter = (req: any, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
+  const allowedTypes = ["image/jpeg", "image/png", "image/gif", "image/webp"];
+  if (allowedTypes.includes(file.mimetype)) {
+    cb(null, true);
+  } else {
+    cb(new Error("Tipo de arquivo não suportado. Por favor, envie apenas imagens (JPEG, PNG, GIF, WebP)."));
+  }
+};
+
+const upload = multer({ 
+  storage: storage_config,
+  fileFilter: fileFilter,
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB
+  }
+});
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Initialize the database with sample data if empty
@@ -748,6 +786,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ 
         message: 'Failed to sync with Calendly' 
       });
+    }
+  });
+
+  // Rota para servir imagens estáticas
+  app.use('/uploads/images', (req, res, next) => {
+    // Adiciona cabeçalhos para cache das imagens
+    res.header('Cache-Control', 'max-age=31536000, public');
+    next();
+  }, express.static(path.join(process.cwd(), 'uploads/images')));
+  
+  // Rota para upload de imagens
+  app.post('/api/upload/image', upload.single('image'), (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: 'Nenhuma imagem foi enviada' });
+      }
+      
+      // Retorna o caminho da imagem para usar no frontend
+      const imagePath = `/uploads/images/${req.file.filename}`;
+      res.json({ 
+        url: imagePath,
+        message: 'Imagem enviada com sucesso' 
+      });
+    } catch (err) {
+      console.error('Erro ao enviar imagem:', err);
+      res.status(500).json({ message: 'Falha ao enviar imagem' });
     }
   });
 
