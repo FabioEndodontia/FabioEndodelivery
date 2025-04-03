@@ -355,6 +355,131 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Rotas de relatórios
+  app.get('/api/reports/dentist-procedures', async (req, res) => {
+    try {
+      const { startDate, endDate, dentistId, period } = req.query;
+      
+      // Converter parâmetros de consulta
+      let start: Date | undefined;
+      let end: Date | undefined;
+      let dentist: number | undefined;
+      
+      // Configurar período com base no parâmetro 'period'
+      const now = new Date();
+      if (period === 'month') {
+        start = new Date(now.getFullYear(), now.getMonth(), 1);
+        end = new Date();
+      } else if (period === 'quarter') {
+        const currentMonth = now.getMonth();
+        const quarterStartMonth = Math.floor(currentMonth / 3) * 3;
+        start = new Date(now.getFullYear(), quarterStartMonth, 1);
+        end = new Date();
+      } else if (period === 'year') {
+        start = new Date(now.getFullYear(), 0, 1);
+        end = new Date();
+      } else if (startDate && typeof startDate === 'string') {
+        start = new Date(startDate);
+        
+        if (endDate && typeof endDate === 'string') {
+          end = new Date(endDate);
+        }
+      }
+      
+      if (dentistId && typeof dentistId === 'string') {
+        dentist = parseInt(dentistId);
+      }
+      
+      // Obter procedimentos
+      const procedures = await storage.getProcedures();
+      
+      // Filtrar por período e dentista
+      let filteredProcedures = procedures;
+      
+      if (start) {
+        filteredProcedures = filteredProcedures.filter(proc => 
+          new Date(proc.procedureDate) >= start!
+        );
+      }
+      
+      if (end) {
+        filteredProcedures = filteredProcedures.filter(proc => 
+          new Date(proc.procedureDate) <= end!
+        );
+      }
+      
+      if (dentist) {
+        filteredProcedures = filteredProcedures.filter(proc => 
+          proc.dentistId === dentist
+        );
+      }
+      
+      // Agrupar por dentista
+      const dentistMap = new Map<number, {
+        dentistId: number,
+        name: string,
+        totalProcedures: number,
+        treatmentCount: number,
+        retreatmentCount: number,
+        totalValue: number,
+        averageValue: number,
+        procedures: any[]
+      }>();
+      
+      // Processar procedimentos por dentista
+      for (const proc of filteredProcedures) {
+        const dentist = await storage.getDentist(proc.dentistId);
+        if (!dentist) continue;
+        
+        if (!dentistMap.has(proc.dentistId)) {
+          dentistMap.set(proc.dentistId, {
+            dentistId: proc.dentistId,
+            name: dentist.name,
+            totalProcedures: 0,
+            treatmentCount: 0,
+            retreatmentCount: 0,
+            totalValue: 0,
+            averageValue: 0,
+            procedures: []
+          });
+        }
+        
+        const entry = dentistMap.get(proc.dentistId)!;
+        entry.totalProcedures += 1;
+        
+        if (proc.procedureType === 'treatment') {
+          entry.treatmentCount += 1;
+        } else if (proc.procedureType === 'retreatment') {
+          entry.retreatmentCount += 1;
+        }
+        
+        entry.totalValue += proc.value;
+        entry.procedures.push({
+          ...proc,
+          procedureDate: new Date(proc.procedureDate).toISOString().split('T')[0]
+        });
+        
+        dentistMap.set(proc.dentistId, entry);
+      }
+      
+      // Calcular ticket médio
+      dentistMap.forEach(entry => {
+        if (entry.totalProcedures > 0) {
+          entry.averageValue = Math.round((entry.totalValue / entry.totalProcedures) * 100) / 100;
+        }
+      });
+      
+      // Converter para array e ordenar por número de procedimentos
+      const result = Array.from(dentistMap.values())
+        .sort((a, b) => b.totalProcedures - a.totalProcedures);
+      
+      res.json(result);
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: 'Falha ao gerar relatório de procedimentos por dentista' });
+    }
+  });
+
   // Invoices API
   app.get('/api/invoices', async (req, res) => {
     try {
