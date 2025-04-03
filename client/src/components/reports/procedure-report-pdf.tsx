@@ -118,34 +118,26 @@ const styles = StyleSheet.create({
     position: 'relative',
     zIndex: 2,
   },
-  imageGridContainer: {
+  // Novas propriedades para o grid de 3 imagens
+  imageContainer: {
     marginTop: 15,
     display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-  },
-  imageRow: {
-    display: 'flex',
     flexDirection: 'row',
+    flexWrap: 'wrap',
     justifyContent: 'space-between',
-    width: '100%',
-    marginBottom: 20,
   },
-  imageCell: {
-    width: '42%',
+  imageBox: {
+    width: '32%',
+    marginBottom: 10,
     borderWidth: 1,
     borderColor: colors.lightSecondary,
     borderRadius: 5,
     padding: 5,
     backgroundColor: colors.white,
   },
-  thirdImageCell: {
-    width: '80%',
-    marginTop: 10,
-  },
   image: {
     width: '100%',
-    height: 120, // Altura fixa para manter proporção
+    height: 120,
     objectFit: 'contain',
     marginBottom: 8,
   },
@@ -158,47 +150,40 @@ const styles = StyleSheet.create({
   emptyImagePlaceholder: {
     width: '100%',
     height: 120,
-    borderWidth: 1,
     borderStyle: 'dashed',
+    borderWidth: 1,
     borderColor: colors.lightSecondary,
     display: 'flex',
-    alignItems: 'center',
     justifyContent: 'center',
+    alignItems: 'center',
     backgroundColor: colors.lightGray,
     borderRadius: 3,
   },
   placeholderText: {
     fontSize: 10,
     color: colors.secondary,
-    textAlign: 'center',
   },
-  logoContainer: {
+  logoBox: {
+    width: '32%',
+    marginBottom: 10,
     display: 'flex',
     flexDirection: 'column',
-    alignItems: 'center',
     justifyContent: 'center',
-    width: '16%',
+    alignItems: 'center',
+    height: 120,
+    padding: 10,
   },
   logoText: {
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: 'bold',
     color: colors.primary,
-    textAlign: 'center',
-    marginBottom: 2,
+    fontStyle: 'italic',
   },
   logoSubtext: {
-    fontSize: 6,
+    fontSize: 8,
     color: colors.secondary,
     textAlign: 'center',
-    marginBottom: 1,
-  },
-  logo: {
-    position: 'absolute',
-    right: 30,
-    bottom: 30,
-    width: 80,
-    height: 40,
-    zIndex: 2,
+    marginTop: 5,
   },
 });
 
@@ -237,6 +222,9 @@ const getProcedureTypeText = (type: string): string => {
 
 export const ProcedureReport = ({ data }: ProcedureReportProps) => {
   const { procedure, patient, dentist, date } = data;
+  
+  // Verifica se a terceira imagem existe
+  const hasThirdImage = !!procedure.thirdXrayUrl;
 
   return (
     <Document>
@@ -261,15 +249,6 @@ export const ProcedureReport = ({ data }: ProcedureReportProps) => {
             <Text style={styles.sectionTitle}>Dados do Paciente</Text>
             <Text style={styles.label}>Nome:</Text>
             <Text style={styles.value}>{patient.name}</Text>
-            
-            {/* Comentado até adicionar telefone ao paciente 
-              {patient.phone && (
-                <>
-                  <Text style={styles.label}>Telefone:</Text>
-                  <Text style={styles.value}>{patient.phone}</Text>
-                </>
-              )}
-            */}
           </View>
           
           <View style={styles.column}>
@@ -325,56 +304,56 @@ export const ProcedureReport = ({ data }: ProcedureReportProps) => {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Imagens Radiográficas</Text>
           
-          <View style={styles.imageGridContainer}>
-            <View style={styles.imageRow}>
-              {/* Primeira imagem */}
-              <View style={styles.imageCell}>
-                {procedure.initialXrayUrl ? (
-                  <>
-                    <Image 
-                      src={procedure.initialXrayUrl} 
-                      style={styles.image} 
-                    />
-                    <Text style={styles.imageLabel}>Radiografia Inicial</Text>
-                  </>
-                ) : (
-                  <View style={styles.emptyImagePlaceholder}>
-                    <Text style={styles.placeholderText}>Imagem 1</Text>
-                  </View>
-                )}
-              </View>
-              
-              {/* Logo central */}
-              <View style={styles.logoContainer}>
-                <Text style={styles.logoText}>FSF</Text>
-                <Text style={styles.logoSubtext}>ENDODONTIA</Text>
-                <Text style={styles.logoSubtext}>DE ALTA PERFORMANCE</Text>
-              </View>
-              
-              {/* Segunda imagem */}
-              <View style={styles.imageCell}>
-                {procedure.finalXrayUrl ? (
-                  <>
-                    <Image 
-                      src={procedure.finalXrayUrl} 
-                      style={styles.image} 
-                    />
-                    <Text style={styles.imageLabel}>Radiografia Final</Text>
-                  </>
-                ) : (
-                  <View style={styles.emptyImagePlaceholder}>
-                    <Text style={styles.placeholderText}>Imagem 2</Text>
-                  </View>
-                )}
-              </View>
+          <View style={styles.imageContainer}>
+            {/* Slot 1 - Radiografia Inicial */}
+            <View style={styles.imageBox}>
+              {procedure.initialXrayUrl ? (
+                <>
+                  <Image 
+                    src={procedure.initialXrayUrl} 
+                    style={styles.image} 
+                  />
+                  <Text style={styles.imageLabel}>Radiografia Inicial</Text>
+                </>
+              ) : (
+                <View style={styles.emptyImagePlaceholder}>
+                  <Text style={styles.placeholderText}>Imagem 1</Text>
+                </View>
+              )}
             </View>
             
-            {/* Terceira imagem (adicional) */}
-            <View style={[styles.imageCell, styles.thirdImageCell]}>
-              <View style={styles.emptyImagePlaceholder}>
-                <Text style={styles.placeholderText}>Imagem Adicional</Text>
-              </View>
+            {/* Slot 2 - Radiografia Final */}
+            <View style={styles.imageBox}>
+              {procedure.finalXrayUrl ? (
+                <>
+                  <Image 
+                    src={procedure.finalXrayUrl} 
+                    style={styles.image} 
+                  />
+                  <Text style={styles.imageLabel}>Radiografia Final</Text>
+                </>
+              ) : (
+                <View style={styles.emptyImagePlaceholder}>
+                  <Text style={styles.placeholderText}>Imagem 2</Text>
+                </View>
+              )}
             </View>
+            
+            {/* Slot 3 - Terceira imagem ou logo */}
+            {hasThirdImage ? (
+              <View style={styles.imageBox}>
+                <Image 
+                  src={procedure.thirdXrayUrl!} 
+                  style={styles.image} 
+                />
+                <Text style={styles.imageLabel}>Imagem Adicional</Text>
+              </View>
+            ) : (
+              <View style={styles.logoBox}>
+                <Text style={styles.logoText}>FSF</Text>
+                <Text style={styles.logoSubtext}>ENDODONTIA DE ALTA PERFORMANCE</Text>
+              </View>
+            )}
           </View>
         </View>
 

@@ -75,6 +75,7 @@ export const procedures = pgTable("procedures", {
   canalMeasurements: text("canal_measurements"),
   initialXrayUrl: text("initial_xray_url"),
   finalXrayUrl: text("final_xray_url"),
+  thirdXrayUrl: text("third_xray_url"),
   value: doublePrecision("value").notNull(),
   paymentMethod: text("payment_method").notNull(),
   paymentStatus: text("payment_status").notNull(),

@@ -56,6 +56,7 @@ const ProcedureForm: React.FC<ProcedureFormProps> = ({ onSuccess, onCancel, proc
       canalMeasurements: '',
       initialXrayUrl: '',
       finalXrayUrl: '',
+      thirdXrayUrl: '',
       notes: '',
     },
   });
@@ -304,6 +305,20 @@ const ProcedureForm: React.FC<ProcedureFormProps> = ({ onSuccess, onCancel, proc
                     <FormLabel>URL da Radiografia Final</FormLabel>
                     <FormControl>
                       <Input placeholder="Radiografia Final (URL)" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="thirdXrayUrl"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>URL da Imagem Adicional</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Imagem Adicional (URL)" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
