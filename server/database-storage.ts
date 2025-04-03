@@ -1,5 +1,6 @@
 import {
   patients, dentists, procedures, invoices, appointments, financialGoals, achievements, userAchievements,
+  materials, procedureMaterials,
   type Patient, type InsertPatient,
   type Dentist, type InsertDentist,
   type Procedure, type InsertProcedure,
@@ -8,6 +9,8 @@ import {
   type FinancialGoal, type InsertFinancialGoal,
   type Achievement, type InsertAchievement,
   type UserAchievement,
+  type Material, type InsertMaterial,
+  type ProcedureMaterial, type InsertProcedureMaterial,
   PROCEDURE_TYPES
 } from "@shared/schema";
 import { IStorage } from "./storage";
@@ -803,5 +806,163 @@ export class DatabaseStorage implements IStorage {
       });
     
     return true;
+  }
+  
+  // Materials Management
+  async getMaterials(): Promise<Material[]> {
+    return await db.select().from(materials);
+  }
+
+  async getMaterial(id: number): Promise<Material | undefined> {
+    const [material] = await db
+      .select()
+      .from(materials)
+      .where(eq(materials.id, id));
+    
+    return material;
+  }
+
+  async createMaterial(materialData: InsertMaterial): Promise<Material> {
+    const [material] = await db
+      .insert(materials)
+      .values({
+        ...materialData,
+        isActive: true
+      })
+      .returning();
+    
+    return material;
+  }
+
+  async updateMaterial(id: number, materialData: Partial<InsertMaterial>): Promise<Material | undefined> {
+    const [updatedMaterial] = await db
+      .update(materials)
+      .set(materialData)
+      .where(eq(materials.id, id))
+      .returning();
+    
+    return updatedMaterial;
+  }
+
+  async deleteMaterial(id: number): Promise<boolean> {
+    // Verificar se o material é usado em algum procedimento
+    const usedInProcedures = await db
+      .select()
+      .from(procedureMaterials)
+      .where(eq(procedureMaterials.materialId, id));
+    
+    if (usedInProcedures.length > 0) {
+      // Marcar como inativo em vez de excluir
+      const [updatedMaterial] = await db
+        .update(materials)
+        .set({ isActive: false })
+        .where(eq(materials.id, id))
+        .returning();
+      
+      return !!updatedMaterial;
+    }
+    
+    // Se não estiver sendo usado, excluir
+    const [deletedMaterial] = await db
+      .delete(materials)
+      .where(eq(materials.id, id))
+      .returning();
+    
+    return !!deletedMaterial;
+  }
+
+  async updateMaterialStock(id: number, newQuantity: number): Promise<Material | undefined> {
+    const [updatedMaterial] = await db
+      .update(materials)
+      .set({ stockQuantity: newQuantity })
+      .where(eq(materials.id, id))
+      .returning();
+    
+    return updatedMaterial;
+  }
+
+  async getLowStockMaterials(): Promise<Material[]> {
+    return await db
+      .select()
+      .from(materials)
+      .where(
+        sql`${materials.isActive} = true AND ${materials.stockQuantity} <= ${materials.minimumStock}`
+      );
+  }
+
+  // Procedure Materials
+  async getProcedureMaterials(procedureType: string): Promise<(ProcedureMaterial & { material: Material })[]> {
+    const procedureMaterialsList = await db
+      .select()
+      .from(procedureMaterials)
+      .where(eq(procedureMaterials.procedureType, procedureType));
+    
+    // Para cada material no procedimento, buscar os detalhes do material
+    const result = [];
+    for (const pm of procedureMaterialsList) {
+      const [material] = await db
+        .select()
+        .from(materials)
+        .where(eq(materials.id, pm.materialId));
+      
+      if (material) {
+        result.push({
+          ...pm,
+          material
+        });
+      }
+    }
+    
+    return result;
+  }
+
+  async getProcedureMaterial(id: number): Promise<ProcedureMaterial | undefined> {
+    const [procedureMaterial] = await db
+      .select()
+      .from(procedureMaterials)
+      .where(eq(procedureMaterials.id, id));
+    
+    return procedureMaterial;
+  }
+
+  async addMaterialToProcedureType(procedureMaterialData: InsertProcedureMaterial): Promise<ProcedureMaterial> {
+    const [procedureMaterial] = await db
+      .insert(procedureMaterials)
+      .values(procedureMaterialData)
+      .returning();
+    
+    return procedureMaterial;
+  }
+
+  async updateProcedureMaterial(id: number, procedureMaterialData: Partial<InsertProcedureMaterial>): Promise<ProcedureMaterial | undefined> {
+    const [updatedProcedureMaterial] = await db
+      .update(procedureMaterials)
+      .set(procedureMaterialData)
+      .where(eq(procedureMaterials.id, id))
+      .returning();
+    
+    return updatedProcedureMaterial;
+  }
+
+  async removeMaterialFromProcedureType(id: number): Promise<boolean> {
+    const [deletedProcedureMaterial] = await db
+      .delete(procedureMaterials)
+      .where(eq(procedureMaterials.id, id))
+      .returning();
+    
+    return !!deletedProcedureMaterial;
+  }
+
+  async calculateProcedureCost(procedureType: string): Promise<{ totalCost: number; materials: (ProcedureMaterial & { material: Material })[] }> {
+    const procedureMaterials = await this.getProcedureMaterials(procedureType);
+    
+    const totalCost = procedureMaterials.reduce((sum, pm) => {
+      return sum + (pm.quantity * pm.material.unitPrice);
+    }, 0);
+    
+    return {
+      totalCost,
+      materials: procedureMaterials
+    };
   }
 }

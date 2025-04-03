@@ -1,5 +1,6 @@
 import {
   patients, dentists, procedures, invoices, appointments, financialGoals, achievements, userAchievements,
+  materials, procedureMaterials,
   type Patient, type InsertPatient,
   type Dentist, type InsertDentist,
   type Procedure, type InsertProcedure,
@@ -7,7 +8,9 @@ import {
   type Appointment, type InsertAppointment,
   type FinancialGoal, type InsertFinancialGoal,
   type Achievement, type InsertAchievement,
-  type UserAchievement
+  type UserAchievement,
+  type Material, type InsertMaterial,
+  type ProcedureMaterial, type InsertProcedureMaterial
 } from "@shared/schema";
 
 // Storage interface for all CRUD operations
@@ -86,6 +89,23 @@ export interface IStorage {
   deleteAchievement(id: number): Promise<boolean>;
   getUserAchievements(): Promise<(Achievement & { earnedDate: Date })[]>;
   awardAchievement(achievementId: number): Promise<boolean>;
+  
+  // Materials Management
+  getMaterials(): Promise<Material[]>;
+  getMaterial(id: number): Promise<Material | undefined>;
+  createMaterial(material: InsertMaterial): Promise<Material>;
+  updateMaterial(id: number, material: Partial<InsertMaterial>): Promise<Material | undefined>;
+  deleteMaterial(id: number): Promise<boolean>;
+  updateMaterialStock(id: number, newQuantity: number): Promise<Material | undefined>;
+  getLowStockMaterials(): Promise<Material[]>;
+  
+  // Procedure Materials
+  getProcedureMaterials(procedureType: string): Promise<(ProcedureMaterial & { material: Material })[]>;
+  getProcedureMaterial(id: number): Promise<ProcedureMaterial | undefined>;
+  addMaterialToProcedureType(procedureMaterial: InsertProcedureMaterial): Promise<ProcedureMaterial>;
+  updateProcedureMaterial(id: number, procedureMaterial: Partial<InsertProcedureMaterial>): Promise<ProcedureMaterial | undefined>;
+  removeMaterialFromProcedureType(id: number): Promise<boolean>;
+  calculateProcedureCost(procedureType: string): Promise<{ totalCost: number; materials: (ProcedureMaterial & { material: Material })[] }>;
 }
 
 export class MemStorage implements IStorage {
@@ -97,6 +117,8 @@ export class MemStorage implements IStorage {
   private financialGoals: Map<number, FinancialGoal>;
   private achievements: Map<number, Achievement>;
   private userAchievements: Map<number, UserAchievement>;
+  private materials: Map<number, Material>;
+  private procedureMaterials: Map<number, ProcedureMaterial>;
   
   private patientId: number;
   private dentistId: number;
@@ -106,6 +128,8 @@ export class MemStorage implements IStorage {
   private financialGoalId: number;
   private achievementId: number;
   private userAchievementId: number;
+  private materialId: number;
+  private procedureMaterialId: number;
 
   constructor() {
     this.patients = new Map();
@@ -116,6 +140,8 @@ export class MemStorage implements IStorage {
     this.financialGoals = new Map();
     this.achievements = new Map();
     this.userAchievements = new Map();
+    this.materials = new Map();
+    this.procedureMaterials = new Map();
     
     this.patientId = 1;
     this.dentistId = 1;
@@ -125,6 +151,8 @@ export class MemStorage implements IStorage {
     this.financialGoalId = 1;
     this.achievementId = 1;
     this.userAchievementId = 1;
+    this.materialId = 1;
+    this.procedureMaterialId = 1;
 
     // Initialize with some sample data
     this.initializeSampleData();
@@ -632,6 +660,132 @@ export class MemStorage implements IStorage {
     
     this.userAchievements.set(id, userAchievement);
     return true;
+  }
+  
+  // Materials Management operations
+  async getMaterials(): Promise<Material[]> {
+    return Array.from(this.materials.values());
+  }
+
+  async getMaterial(id: number): Promise<Material | undefined> {
+    return this.materials.get(id);
+  }
+
+  async createMaterial(materialData: InsertMaterial): Promise<Material> {
+    const id = this.materialId++;
+    const now = new Date();
+    const material: Material = { 
+      ...materialData, 
+      id, 
+      createdAt: now,
+      isActive: true
+    };
+    this.materials.set(id, material);
+    return material;
+  }
+
+  async updateMaterial(id: number, materialData: Partial<InsertMaterial>): Promise<Material | undefined> {
+    const material = this.materials.get(id);
+    if (!material) return undefined;
+    
+    const updatedMaterial: Material = { ...material, ...materialData };
+    this.materials.set(id, updatedMaterial);
+    return updatedMaterial;
+  }
+
+  async deleteMaterial(id: number): Promise<boolean> {
+    // Check if this material is used in any procedure type
+    const isUsed = Array.from(this.procedureMaterials.values())
+      .some(pm => pm.materialId === id);
+    
+    if (isUsed) {
+      // Just mark as inactive instead of deleting
+      const material = this.materials.get(id);
+      if (material) {
+        material.isActive = false;
+        this.materials.set(id, material);
+        return true;
+      }
+      return false;
+    }
+    
+    return this.materials.delete(id);
+  }
+
+  async updateMaterialStock(id: number, newQuantity: number): Promise<Material | undefined> {
+    const material = this.materials.get(id);
+    if (!material) return undefined;
+    
+    const updatedMaterial: Material = { 
+      ...material, 
+      stockQuantity: newQuantity 
+    };
+    this.materials.set(id, updatedMaterial);
+    return updatedMaterial;
+  }
+
+  async getLowStockMaterials(): Promise<Material[]> {
+    return Array.from(this.materials.values())
+      .filter(m => m.isActive && m.stockQuantity <= (m.minimumStock || 0));
+  }
+
+  // Procedure Materials operations
+  async getProcedureMaterials(procedureType: string): Promise<(ProcedureMaterial & { material: Material })[]> {
+    const procedureMaterialsList = Array.from(this.procedureMaterials.values())
+      .filter(pm => pm.procedureType === procedureType);
+    
+    return procedureMaterialsList.map(pm => {
+      const material = this.materials.get(pm.materialId);
+      if (!material) {
+        throw new Error(`Material ${pm.materialId} not found`);
+      }
+      return {
+        ...pm,
+        material
+      };
+    });
+  }
+
+  async getProcedureMaterial(id: number): Promise<ProcedureMaterial | undefined> {
+    return this.procedureMaterials.get(id);
+  }
+
+  async addMaterialToProcedureType(procedureMaterialData: InsertProcedureMaterial): Promise<ProcedureMaterial> {
+    const id = this.procedureMaterialId++;
+    const now = new Date();
+    const procedureMaterial: ProcedureMaterial = { 
+      ...procedureMaterialData, 
+      id, 
+      createdAt: now 
+    };
+    this.procedureMaterials.set(id, procedureMaterial);
+    return procedureMaterial;
+  }
+
+  async updateProcedureMaterial(id: number, procedureMaterialData: Partial<InsertProcedureMaterial>): Promise<ProcedureMaterial | undefined> {
+    const procedureMaterial = this.procedureMaterials.get(id);
+    if (!procedureMaterial) return undefined;
+    
+    const updatedProcedureMaterial: ProcedureMaterial = { ...procedureMaterial, ...procedureMaterialData };
+    this.procedureMaterials.set(id, updatedProcedureMaterial);
+    return updatedProcedureMaterial;
+  }
+
+  async removeMaterialFromProcedureType(id: number): Promise<boolean> {
+    return this.procedureMaterials.delete(id);
+  }
+
+  async calculateProcedureCost(procedureType: string): Promise<{ totalCost: number; materials: (ProcedureMaterial & { material: Material })[] }> {
+    const procedureMaterials = await this.getProcedureMaterials(procedureType);
+    
+    const totalCost = procedureMaterials.reduce((sum, pm) => {
+      return sum + (pm.quantity * pm.material.unitPrice);
+    }, 0);
+    
+    return {
+      totalCost,
+      materials: procedureMaterials
+    };
   }
 }
 

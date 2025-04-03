@@ -14,6 +14,8 @@ import Invoices from "@/pages/invoices";
 import Appointments from "@/pages/appointments";
 import Goals from "./pages/Goals";
 import Achievements from "./pages/Achievements";
+import Materials from "./pages/Materials";
+import ProcedureMaterials from "./pages/ProcedureMaterials";
 import Sidebar from "@/components/ui/sidebar";
 import ConnectivityStatus from "@/components/ui/connectivity-status";
 
@@ -43,6 +45,10 @@ function Router() {
         return "Metas";
       case location === "/conquistas":
         return "Conquistas";
+      case location === "/materiais":
+        return "Materiais";
+      case location === "/materiais-procedimentos":
+        return "Materiais por Procedimento";
       default:
         return "EndoFinance";
     }
@@ -71,6 +77,10 @@ function Router() {
         return "Estabelecer e acompanhar metas financeiras";
       case location === "/conquistas":
         return "Visualizar suas conquistas e recompensas";
+      case location === "/materiais":
+        return "Gerenciar estoque de materiais utilizados nos procedimentos";
+      case location === "/materiais-procedimentos":
+        return "Associar materiais a tipos de procedimentos e calcular custos";
       default:
         return "";
     }
@@ -102,6 +112,8 @@ function Router() {
             <Route path="/invoices" component={Invoices} />
             <Route path="/metas" component={Goals} />
             <Route path="/conquistas" component={Achievements} />
+            <Route path="/materiais" component={Materials} />
+            <Route path="/materiais-procedimentos" component={ProcedureMaterials} />
             <Route component={NotFound} />
           </Switch>
         </main>

@@ -9,7 +9,9 @@ import {
   insertInvoiceSchema,
   insertAppointmentSchema,
   insertFinancialGoalSchema,
-  insertAchievementSchema
+  insertAchievementSchema,
+  insertMaterialSchema,
+  insertProcedureMaterialSchema
 } from "@shared/schema";
 import { fromZodError } from "zod-validation-error";
 import { DatabaseStorage } from "./database-storage";
@@ -1046,6 +1048,192 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       log(`Erro ao conceder conquista: ${error.message}`, 'routes');
       res.status(500).json({ error: 'Erro ao conceder conquista' });
+    }
+  });
+
+  // API: Materiais
+  app.get('/api/materials', async (req, res) => {
+    try {
+      const materials = await storage.getMaterials();
+      res.json(materials);
+    } catch (error) {
+      console.error('Erro ao buscar materiais:', error);
+      res.status(500).json({ message: 'Erro ao buscar materiais' });
+    }
+  });
+
+  app.get('/api/materials/:id', async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: 'ID inválido' });
+      }
+      
+      const material = await storage.getMaterial(id);
+      if (!material) {
+        return res.status(404).json({ message: 'Material não encontrado' });
+      }
+      
+      res.json(material);
+    } catch (error) {
+      console.error('Erro ao buscar material:', error);
+      res.status(500).json({ message: 'Erro ao buscar material' });
+    }
+  });
+
+  app.post('/api/materials', async (req, res) => {
+    try {
+      const materialData = insertMaterialSchema.parse(req.body);
+      const material = await storage.createMaterial(materialData);
+      res.status(201).json(material);
+    } catch (error) {
+      handleValidationError(error, res);
+    }
+  });
+
+  app.patch('/api/materials/:id', async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: 'ID inválido' });
+      }
+      
+      // Validar parcialmente os dados
+      const materialData = insertMaterialSchema.partial().parse(req.body);
+      
+      const updatedMaterial = await storage.updateMaterial(id, materialData);
+      if (!updatedMaterial) {
+        return res.status(404).json({ message: 'Material não encontrado' });
+      }
+      
+      res.json(updatedMaterial);
+    } catch (error) {
+      handleValidationError(error, res);
+    }
+  });
+
+  app.delete('/api/materials/:id', async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: 'ID inválido' });
+      }
+      
+      const result = await storage.deleteMaterial(id);
+      if (!result) {
+        return res.status(404).json({ message: 'Material não encontrado' });
+      }
+      
+      res.status(204).send();
+    } catch (error) {
+      console.error('Erro ao excluir material:', error);
+      res.status(500).json({ message: 'Erro ao excluir material' });
+    }
+  });
+
+  app.patch('/api/materials/:id/stock', async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: 'ID inválido' });
+      }
+      
+      const { quantity } = req.body;
+      if (quantity === undefined || isNaN(quantity)) {
+        return res.status(400).json({ message: 'Quantidade inválida' });
+      }
+      
+      const updatedMaterial = await storage.updateMaterialStock(id, quantity);
+      if (!updatedMaterial) {
+        return res.status(404).json({ message: 'Material não encontrado' });
+      }
+      
+      res.json(updatedMaterial);
+    } catch (error) {
+      console.error('Erro ao atualizar estoque:', error);
+      res.status(500).json({ message: 'Erro ao atualizar estoque' });
+    }
+  });
+
+  app.get('/api/materials/low-stock', async (req, res) => {
+    try {
+      const materials = await storage.getLowStockMaterials();
+      res.json(materials);
+    } catch (error) {
+      console.error('Erro ao buscar materiais com baixo estoque:', error);
+      res.status(500).json({ message: 'Erro ao buscar materiais com baixo estoque' });
+    }
+  });
+
+  // API: Materiais por tipo de procedimento
+  app.get('/api/procedure-materials/:procedureType', async (req, res) => {
+    try {
+      const { procedureType } = req.params;
+      const procedureMaterials = await storage.getProcedureMaterials(procedureType);
+      res.json(procedureMaterials);
+    } catch (error) {
+      console.error('Erro ao buscar materiais do procedimento:', error);
+      res.status(500).json({ message: 'Erro ao buscar materiais do procedimento' });
+    }
+  });
+
+  app.post('/api/procedure-materials', async (req, res) => {
+    try {
+      const procedureMaterialData = insertProcedureMaterialSchema.parse(req.body);
+      const procedureMaterial = await storage.addMaterialToProcedureType(procedureMaterialData);
+      res.status(201).json(procedureMaterial);
+    } catch (error) {
+      handleValidationError(error, res);
+    }
+  });
+
+  app.patch('/api/procedure-materials/:id', async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: 'ID inválido' });
+      }
+      
+      const procedureMaterialData = insertProcedureMaterialSchema.partial().parse(req.body);
+      const updatedProcedureMaterial = await storage.updateProcedureMaterial(id, procedureMaterialData);
+      
+      if (!updatedProcedureMaterial) {
+        return res.status(404).json({ message: 'Relação material-procedimento não encontrada' });
+      }
+      
+      res.json(updatedProcedureMaterial);
+    } catch (error) {
+      handleValidationError(error, res);
+    }
+  });
+
+  app.delete('/api/procedure-materials/:id', async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: 'ID inválido' });
+      }
+      
+      const result = await storage.removeMaterialFromProcedureType(id);
+      if (!result) {
+        return res.status(404).json({ message: 'Relação material-procedimento não encontrada' });
+      }
+      
+      res.status(204).send();
+    } catch (error) {
+      console.error('Erro ao remover material do procedimento:', error);
+      res.status(500).json({ message: 'Erro ao remover material do procedimento' });
+    }
+  });
+
+  app.get('/api/procedure-cost/:procedureType', async (req, res) => {
+    try {
+      const { procedureType } = req.params;
+      const costInfo = await storage.calculateProcedureCost(procedureType);
+      res.json(costInfo);
+    } catch (error) {
+      console.error('Erro ao calcular custo do procedimento:', error);
+      res.status(500).json({ message: 'Erro ao calcular custo do procedimento' });
     }
   });
 

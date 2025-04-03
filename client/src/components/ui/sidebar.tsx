@@ -12,7 +12,9 @@ import {
   LogOut,
   Calendar,
   Target,
-  Award
+  Award,
+  Package,
+  ClipboardList
 } from "lucide-react";
 
 const Sidebar = () => {
@@ -27,6 +29,8 @@ const Sidebar = () => {
     { href: "/invoices", label: "Notas Fiscais", icon: Receipt },
     { href: "/metas", label: "Metas", icon: Target },
     { href: "/conquistas", label: "Conquistas", icon: Award },
+    { href: "/materiais", label: "Materiais", icon: Package },
+    { href: "/materiais-procedimentos", label: "Materiais por Procedimento", icon: ClipboardList },
   ];
 
   return (

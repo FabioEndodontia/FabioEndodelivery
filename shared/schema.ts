@@ -283,6 +283,69 @@ export type GoalDifficulty = typeof GOAL_DIFFICULTY[number];
 export type FinancialGoal = typeof financialGoals.$inferSelect;
 export type InsertFinancialGoal = z.infer<typeof insertFinancialGoalSchema>;
 
+// Unidades de medida para materiais
+export const MEASUREMENT_UNITS = [
+  "UNIDADE",
+  "CAIXA",
+  "PACOTE",
+  "ML",
+  "GRAMA"
+] as const;
+
+// Tabela de materiais de consumo
+export const materials = pgTable("materials", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description"),
+  unitPrice: doublePrecision("unit_price").notNull(),
+  measurementUnit: text("measurement_unit").notNull(),
+  stockQuantity: doublePrecision("stock_quantity").default(0).notNull(),
+  minimumStock: doublePrecision("minimum_stock").default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  isActive: boolean("is_active").default(true).notNull(),
+});
+
+// Tabela de relação entre materiais e tipos de procedimentos
+export const procedureMaterials = pgTable("procedure_materials", {
+  id: serial("id").primaryKey(),
+  procedureType: text("procedure_type").notNull(),
+  materialId: integer("material_id").notNull().references(() => materials.id),
+  quantity: doublePrecision("quantity").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Schema validation para materiais
+export const insertMaterialSchema = createInsertSchema(materials)
+  .omit({
+    id: true,
+    createdAt: true,
+    isActive: true,
+  })
+  .extend({
+    measurementUnit: z.enum(MEASUREMENT_UNITS),
+    unitPrice: z.coerce.number().positive(),
+    stockQuantity: z.coerce.number().min(0),
+    minimumStock: z.coerce.number().min(0).optional(),
+  });
+
+// Schema validation para relação entre materiais e procedimentos
+export const insertProcedureMaterialSchema = createInsertSchema(procedureMaterials)
+  .omit({
+    id: true,
+    createdAt: true,
+  })
+  .extend({
+    procedureType: z.enum(PROCEDURE_TYPES),
+    quantity: z.coerce.number().positive(),
+  });
+
+// Tipos de materiais
+export type Material = typeof materials.$inferSelect;
+export type InsertMaterial = z.infer<typeof insertMaterialSchema>;
+export type ProcedureMaterial = typeof procedureMaterials.$inferSelect;
+export type InsertProcedureMaterial = z.infer<typeof insertProcedureMaterialSchema>;
+export type MeasurementUnit = typeof MEASUREMENT_UNITS[number];
+
 export type Achievement = typeof achievements.$inferSelect;
 export type InsertAchievement = z.infer<typeof insertAchievementSchema>;
 
