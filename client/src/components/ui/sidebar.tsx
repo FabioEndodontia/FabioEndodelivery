@@ -57,7 +57,7 @@ const Sidebar = () => {
             <User size={20} />
           </div>
           <div className="ml-3">
-            <p className="text-sm font-medium">Dra. Maria Silva</p>
+            <p className="text-sm font-medium">{user?.name} </p>
             <p className="text-xs text-neutral-800">Endodontista</p>
           </div>
           <button className="ml-auto text-neutral-800">
