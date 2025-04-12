@@ -1,0 +1,23 @@
+procedure.controller.ts.
+// controllers/procedure.controller.ts
+import { Request, Response } from 'express';
+import { db } from '../lib/db';
+import { insertProcedureSchema } from '../shared/schema';
+
+export const createProcedure = async (req: Request, res: Response) => {
+  try {
+    const result = insertProcedureSchema.safeParse(req.body);
+    if (!result.success) {
+      return res.status(400).json({ error: result.error.errors });
+    }
+
+    const procedure = await db.procedure.create({
+      data: result.data,
+    });
+
+    res.status(201).json(procedure);
+  } catch (error) {
+    console.error('Erro ao criar procedimento:', error);
+    res.status(500).json({ error: 'Erro interno no servidor.' });
+  }
+};
