@@ -1,0 +1,10 @@
+import request from 'supertest';
+import { app } from '../server';
+
+describe('API Endpoints', () => {
+  it('GET /api/patients should return array', async () => {
+    const res = await request(app).get('/api/patients');
+    expect(res.statusCode).toBe(200);
+    expect(Array.isArray(res.body)).toBe(true);
+  });
+});

@@ -1,3 +1,4 @@
+import { reportRoutes } from "./report-routes";
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
@@ -20,6 +21,8 @@ app.use(express.urlencoded({ extended: false }));
 
 // Serve uploads directory as static files
 app.use('/uploads', express.static(uploadsDir));
+
+app.use("/api/reports", reportRoutes);
 
 app.use((req, res, next) => {
   const start = Date.now();

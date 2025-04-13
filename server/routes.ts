@@ -1298,4 +1298,4 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Criar e retornar o servidor HTTP
   const httpServer = createServer(app);
   return httpServer;
-}
+};

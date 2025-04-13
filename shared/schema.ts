@@ -136,11 +136,27 @@ export const insertProcedureSchema = createInsertSchema(procedures)
     createdAt: true,
   })
   .extend({
+    patientId: z.number().int().positive(),
+    dentistId: z.number().int().positive(),
+    toothNumber: z.number().int().positive(),
+
     procedureType: z.enum(PROCEDURE_TYPES),
+    diagnosis: z.string().optional(),
+    prognosis: z.string().optional(),
+    canalMeasurements: z.string().optional(),
+
+    initialXrayUrl: z.string().url().optional(),
+    finalXrayUrl: z.string().url().optional(),
+    thirdXrayUrl: z.string().url().optional(),
+
+    value: z.number().positive(),
+
     paymentMethod: z.enum(PAYMENT_METHODS),
     paymentStatus: z.enum(PAYMENT_STATUS),
-    procedureDate: z.coerce.date(),
     paymentDate: z.coerce.date().optional(),
+    procedureDate: z.coerce.date(),
+
+    notes: z.string().optional(),
   });
 
 // Schema validation for invoice creation
